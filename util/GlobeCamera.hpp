@@ -1,9 +1,11 @@
+/**
+ * GlobeCamera.hpp - Contains helper methods to control the camera. Modified version of a standard
+ * template by Dr. Brandt.
+ *
+ * @author Dr. Alexander Brandt, Mars Semenova
+ */
 #ifndef _CAM_CONTROLS_H_
 #define _CAM_CONTROLS_H_
-
-#include <glm/glm.hpp>
-
-static const double _PI = 2.0*asin(1);
 
 glm::vec3 cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     glm::vec3 targ = {0.0f, 0.0f, 0.0f};
@@ -60,20 +62,17 @@ glm::vec3 cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
         firstPress = true;
     }
 
-    //Avoid super jumpy motion
-    // if (fabs(dx) < 10 && fabs(dy) < 10) {
-        theta += 0.002f * dx;
-        phi   += -0.002f * dy;
-        if (theta > 2*_PI) {
-            theta -= 2*_PI;
-        }
-        if (phi >= _PI) {
-            phi = 0.9999999 * _PI;
-        }
-        if (phi <= -_PI) {
-            phi = -0.9999999 * _PI;
-        }
-    // }
+    theta += 0.002f * dx;
+    phi   += -0.002f * dy;
+    if (theta > 2*_PI) {
+        theta -= 2*_PI;
+    }
+    if (phi >= _PI) {
+        phi = 0.9999999 * _PI;
+    }
+    if (phi <= -_PI) {
+        phi = -0.9999999 * _PI;
+    }
 
     glm::vec3 direction(
         sin(phi) * sin(theta),
@@ -101,4 +100,5 @@ glm::vec3 cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
 
     return position;
 }
+
 #endif

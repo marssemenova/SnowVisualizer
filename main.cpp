@@ -1,37 +1,20 @@
-// include standard headers
-#include <stdio.h>
-#include <stdlib.h>
-#include <cmath>
-
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
-#include <iostream>
-
-// include GLM
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/string_cast.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-using namespace glm;
-
-// settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
-
-#include "util/shader.hpp"
-#include "util/GlobeCamera.hpp"
+/**
+ * Main.cpp - Runner file for the application. Structure largely follows a standard
+ * template by Dr. Brandt.
+ *
+ * @author Mars Semenova, Dr. Alexander Brandt
+ * @date March 30, 2026
+ */
+#include "util/Constants.hpp"
 #include "sample/LoadBMP.hpp"
-#include "sample/Plane.hpp"
-#include "sample/Sphere.hpp"
+#include "util/Shader.hpp"
+#include "util/GlobeCamera.hpp"
+#include "snow/SnowGenerator.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
-int main()
-{
+int main() {
     // glfw: initialize and configure
     glfwInit();
     glfwWindowHint(GLFW_SAMPLES, 4);
@@ -59,7 +42,13 @@ int main()
         return -1;
     }
 
-    // define vars
+    // temp input vars, TODO: del n get thru CLI
+    GLuint numParticles = 1;
+    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0;
+    GLfloat temp = -5.0;
+    bool isWet = true;
+
+    // def vars
     float screenW = SCR_WIDTH;
     float screenH = SCR_HEIGHT;
     GLenum err;
@@ -77,46 +66,21 @@ int main()
 
     glm::mat4 V = glm::lookAt(eye, center, up);
     cameraControlsGlobe(V, eye, window);
-
-    glm::mat4 V2 = glm::lookAt(eye, center, up);
-
-    glm::mat4 M1(1.0f);
-    glm::mat4 M2(1.0f);
-    glm::mat4 M3(1.0f);
-    glm::mat4 MFloor(1.0f);
-    M1 = glm::translate(M2, glm::vec3(-3.0f, 0.0f, 0.0f));
-    M3 = glm::translate(M2, glm::vec3(3.0f, 0.0f, 0.0f));
-    MFloor = glm::translate(MFloor, glm::vec3(0.f, -1.1f, 0.f));
-
-    Sphere sphere;
-    sphere.setUpAxis(2);
-    Sphere sphere2;
-    Sphere sphere3;
-    sphere2.setUpAxis(2);
-    sphere3.setUpAxis(2);
-
-    Plane floor(10.0f, "wood.bmp");
-
+    glm::mat4 MSnow(1.0f);
     glm::vec3 lightpos(5.0f, 5.0f, 5.0f);
+
+    // setup snow gen obj
+    GLfloat extent[2][2] = {{minX, maxX}, {minY, maxY}};
+    SnowGenerator snowGen(numParticles, extent, temp, isWet);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
-
-    glm::vec4 color1(0.f, 0.8f, 0.8f, 1.0f);
-    glm::vec4 color2(0.f, 0.8f, 0.8f, 1.0f);
-    glm::vec4 color3(0.f, 0.8f, 0.8f, 1.0f);
-    float alpha1 = 2;
-    float alpha2 = 16;
-    float alpha3 = 64;
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
-        sphere.draw(lightpos, M1, V, Projection, color1, alpha1);
-        sphere2.draw(lightpos, M2, V, Projection, color2, alpha2);
-        sphere3.draw(lightpos, M3, V, Projection, color3, alpha3);
-
-        floor.draw(lightpos, MFloor, V, Projection, color3, alpha1);
+        snowGen.draw(lightpos, MSnow, V, Projection);
 
         cameraControlsGlobe(V, eye, window);
 

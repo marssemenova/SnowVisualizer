@@ -27,5 +27,8 @@ Proceedings of the Second International Conference on Internet Multimedia Comput
 and Service. Association for Computing Machinery, 2010, pp. 199–202. ISBN:
 9781450304603. DOI: 10.1145/1937728.1937775.
 
+## TODOs
+
+- Parse input args + if empty use default vals
 
 
