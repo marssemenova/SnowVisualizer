@@ -136,7 +136,7 @@ public:
 
 			data.verts[x] = rho*cos(theta)*sin(phi);
 			data.verts[x+1] = rho*sin(theta)*sin(phi);
-			data.verts[x+2] = rho*cos(theta);
+			data.verts[x+2] = rho*cos(phi);
 
 			for (int i = 3; i < 9; i+=3) {
 				newTheta = getRandFloat(theta-EPS, theta+EPS);
@@ -144,7 +144,7 @@ public:
 
 				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
 				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
-				data.verts[x+i+2] = rho*cos(newTheta);
+				data.verts[x+i+2] = rho*cos(newPhi);
 			}
 			calcNormal(&(data.verts[x]), &(data.normals[x]));
 		}
@@ -161,7 +161,6 @@ public:
 	}
 
 	SnowBuilderData generateSnowOnceMoeslund() {
-		return generateSnowOnceRand();
 		// set vars
 		GLuint numPolys;
 		GLfloat d, rho, currRho, theta, phi, newTheta, newPhi;
@@ -188,7 +187,7 @@ public:
 
 			data.verts[x] = rho*cos(theta)*sin(phi);
 			data.verts[x+1] = rho*sin(theta)*sin(phi);
-			data.verts[x+2] = rho*cos(theta);
+			data.verts[x+2] = rho*cos(phi);
 
 			sphericalCoords[x] = rho;
 			sphericalCoords[x+1] = theta;
@@ -201,7 +200,7 @@ public:
 
 				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
 				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
-				data.verts[x+i+2] = rho*cos(newTheta);
+				data.verts[x+i+2] = rho*cos(newPhi);
 
 				sphericalCoords[x+i] = rho;
 				sphericalCoords[x+i+1] = newTheta;
@@ -231,7 +230,7 @@ public:
 
 				data.verts[x+y] = refRho*cos(theta)*sin(phi);
 				data.verts[x+y+1] = refRho*sin(theta)*sin(phi);
-				data.verts[x+y+2] = refRho*cos(theta);
+				data.verts[x+y+2] = refRho*cos(phi);
 
 				sphericalCoords[x+y] = refRho;
 				sphericalCoords[x+y+1] = theta;
@@ -244,7 +243,7 @@ public:
 
 					data.verts[x+y+i] = rho*cos(newTheta)*sin(newPhi);
 					data.verts[x+y+i+1] = rho*sin(newTheta)*sin(newPhi);
-					data.verts[x+y+i+2] = rho*cos(newTheta);
+					data.verts[x+y+i+2] = rho*cos(newPhi);
 
 					sphericalCoords[x+y+i] = rho;
 					sphericalCoords[x+y+i+1] = newTheta;
