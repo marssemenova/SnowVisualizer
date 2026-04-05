@@ -15,10 +15,11 @@ private:
 	// params
 	GLuint numParticles;
 	GLfloat temp; // C
-	GLfloat extent[2][2]; // x range, y range
+	GLfloat extent[3][2]; // x range, y range, z range
 	GLfloat density; // calced
 	GLfloat diameter; // calced
 	SnowBuilder snowBuilder;
+	SnowBuilderData data;
 
 	// render params
 	GLuint programID;
@@ -30,9 +31,9 @@ private:
 	GLuint colorBuffer;
 
 public:
-	SnowGenerator(GLuint numParticles, const GLfloat extentInp[2][2], GLfloat temp, bool isWet) : numParticles(numParticles), temp(temp) {
+	SnowGenerator(GLuint numParticles, const GLfloat extentInp[3][2], GLfloat temp, bool isWet) : numParticles(numParticles), temp(temp) {
 		// set vars
-		memcpy(extent, extentInp, 4*sizeof(GLfloat));
+		memcpy(extent, extentInp, 6*sizeof(GLfloat));
 		if (temp <= -0.061) {
 			diameter = 0.015*pow(abs(temp), -0.35);
 		} else {
@@ -41,7 +42,7 @@ public:
 		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
 
 		// create builder
-		snowBuilder = SnowBuilder(diameter, density, extent);
+		snowBuilder = SnowBuilder(diameter, density, extent, isWet); // TODO: rem scale
 
 		// load shaders
 		programID = LoadShaders( "ColorVertexShader.vertexshader", "ColorFragmentShader.fragmentshader");
@@ -58,15 +59,12 @@ public:
 		glBindVertexArray(vertexArrayID);
 
 		// gen snow
-		GLfloat verts[18]; // TODO: numParticles*9
-		GLfloat normals[18];
-		GLfloat colours[18];
-		snowBuilder.generateSnowOnce(verts, normals, colours);
+		data = snowBuilder.generateSnowOnce();
 
 		// vertices
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9 * 3, data.verts, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(
 			0,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -80,7 +78,7 @@ public:
 		// colours
 		glGenBuffers(1, &colorBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(colours), colours, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9 * 3, data.colours, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(
 			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -102,9 +100,9 @@ public:
 
 		glUniformMatrix4fv(MVPID, 1, GL_FALSE, &MVP[0][0]);
 
-		glLineWidth(5.0f);
-		glDrawArrays(GL_LINES, 0, 6);
-		glLineWidth(1.0f);
+		glPointSize(3.0f);
+		glDrawArrays(GL_TRIANGLES, 0, data.numPolys*3);
+		glPointSize(1.0f);
 
 		glUseProgram(0);
 		glBindVertexArray(0);

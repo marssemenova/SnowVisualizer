@@ -7,7 +7,7 @@
  */
 #include "util/Constants.hpp"
 #include "sample/LoadBMP.hpp"
-#include "util/Shader.hpp"
+
 #include "util/GlobeCamera.hpp"
 #include "snow/SnowGenerator.hpp"
 
@@ -15,6 +15,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
 int main() {
+    srand(time(0));
     // glfw: initialize and configure
     glfwInit();
     glfwWindowHint(GLFW_SAMPLES, 4);
@@ -44,7 +45,7 @@ int main() {
 
     // temp input vars, TODO: del n get thru CLI
     GLuint numParticles = 1;
-    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0;
+    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0;
     GLfloat temp = -5.0;
     bool isWet = true;
 
@@ -52,6 +53,7 @@ int main() {
     float screenW = SCR_WIDTH;
     float screenH = SCR_HEIGHT;
     GLenum err;
+    Axes axes(glm::vec3(0,  0, 0), glm::vec3(5.0f, 5.0f, 5.0f));
 
     // ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
@@ -59,6 +61,7 @@ int main() {
     // dark blue background
     glClearColor(0.2f, 0.2f, 0.3f, 0.0f);
 
+    // set up rendering vars
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), screenW/screenH, 0.001f, 1000.0f);
     glm::vec3 eye = {0.0f, 3.0f, 5.0f};
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
@@ -67,19 +70,32 @@ int main() {
     glm::mat4 V = glm::lookAt(eye, center, up);
     cameraControlsGlobe(V, eye, window);
     glm::mat4 MSnow(1.0f);
+    MSnow = glm::scale(MSnow, glm::vec3(50.0f, 50.0f, 50.0f));
+    glm::mat4 MAxes(1.0f);
     glm::vec3 lightpos(5.0f, 5.0f, 5.0f);
 
+    Sphere sphere;
+    sphere.setUpAxis(2);
+    sphere.setRadius((0.008540*0.5)/2);
+    glm::vec4 color1(0.f, 0.8f, 0.8f, 0.1f);
+    glm::mat4 M1(1.0f);
+    M1 = glm::scale(M1, glm::vec3(50.0f, 50.0f, 50.0f));
+    float alpha1 = 2;
+
     // setup snow gen obj
-    GLfloat extent[2][2] = {{minX, maxX}, {minY, maxY}};
+    GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
     SnowGenerator snowGen(numParticles, extent, temp, isWet);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
 
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
+        //axes.draw(MAxes, V, Projection);
+        //sphere.draw(lightpos, M1, V, Projection, color1, alpha1);
         snowGen.draw(lightpos, MSnow, V, Projection);
 
         cameraControlsGlobe(V, eye, window);

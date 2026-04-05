@@ -31,11 +31,12 @@
 // def vals
 const GLuint DEFAULT_SNOW_COUNT = 100;
 const GLfloat DEFAULT_TEMP = -15.0; // C
-const GLfloat DEFAULT_EXTENT[2][2] = {{-100, 100}, {-100, 100}}; // x range, y range
+const GLfloat DEFAULT_EXTENT[3][2] = {{-100, 100}, {-100, 100}, {-100, 100}}; // x range, y range, z range
 
 // consts
 const GLfloat DRY_HUMIDITY_CONST = 0.17; // km/m^2
 const GLfloat WET_HUMIDITY_CONST = 0.724; // km/m^2
 const GLfloat GRAV = 9.81; // used w density
+const GLfloat EPS = 80.0; // val from Moeslund
 
 #endif

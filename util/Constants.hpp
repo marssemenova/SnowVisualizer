@@ -29,6 +29,11 @@
 
 using namespace glm;
 
+#include "Util.hpp"
+#include "Shader.hpp"
+#include "Axes.hpp"
+#include "Sphere.hpp"
+
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
