@@ -18,6 +18,7 @@ private:
 	GLfloat extent[3][2]; // x range, y range, z range
 	GLfloat density; // calced
 	GLfloat diameter; // calced
+	GLfloat alpha;
 	SnowBuilder snowBuilder;
 	SnowBuilderData data;
 
@@ -45,6 +46,7 @@ public:
 			diameter = 0.04;
 		}
 		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
+		alpha = isWet ? 3.0 : 2.0; // TODO: experiment to get good values
 
 		// create builder
 		snowBuilder = SnowBuilder(diameter, density, extent, isWet);
@@ -125,7 +127,7 @@ public:
 		glUniformMatrix4fv(MID, 1, GL_FALSE, &M[0][0]);
 		glUniformMatrix4fv(VID, 1, GL_FALSE, &V[0][0]);
 		glUniform3f(LightPosID, lightPos.x, lightPos.y, lightPos.z);
-		glUniform1f(alphaID, 2); // TODO
+		glUniform1f(alphaID, alpha);
 
 		glPointSize(3.0f);
 		glDrawArrays(GL_TRIANGLES, 0, data.numPolys*3);
