@@ -45,7 +45,7 @@ int main() {
 
     // temp input vars, TODO: del n get thru CLI
     GLuint numParticles = 1;
-    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0;
+    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0, scale = 50.0f;
     GLfloat temp = -5.0;
     bool isWet = true;
 
@@ -70,7 +70,7 @@ int main() {
     glm::mat4 V = glm::lookAt(eye, center, up);
     cameraControlsGlobe(V, eye, window);
     glm::mat4 MSnow(1.0f);
-    MSnow = glm::scale(MSnow, glm::vec3(50.0f, 50.0f, 50.0f));
+    MSnow = glm::scale(MSnow, glm::vec3(scale, scale, scale));
     glm::mat4 MAxes(1.0f);
     glm::vec3 lightpos(5.0f, 5.0f, 5.0f);
 
@@ -83,7 +83,7 @@ int main() {
     float alpha1 = 2;
 
     // setup snow gen obj
-    GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
+    GLfloat extent[3][2] = {{minX/scale, maxX/scale}, {minY/scale, maxY/scale}, {minZ/scale, maxZ/scale}};
     SnowGenerator snowGen(numParticles, extent, temp, isWet);
 
     glEnable(GL_DEPTH_TEST);

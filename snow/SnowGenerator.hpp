@@ -49,7 +49,7 @@ public:
 		alpha = isWet ? 3.0 : 2.0; // TODO: experiment to get good values
 
 		// create builder
-		snowBuilder = SnowBuilder(diameter, density, extent, isWet);
+		snowBuilder = SnowBuilder(diameter, density, isWet);
 
 		// load shaders
 		programID = LoadShaders( "PhongVertexShader.vertexshader", "PhongFragmentShader.fragmentshader");
@@ -70,7 +70,7 @@ public:
 		glBindVertexArray(vertexArrayID);
 
 		// gen snow
-		data = snowBuilder.generateSnowOnce();
+		data = snowBuilder.generateSnowRand(2, extent);
 
 		// vertices
 		glGenBuffers(1, &vertBuffer);

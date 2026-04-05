@@ -39,4 +39,10 @@ const GLfloat WET_HUMIDITY_CONST = 0.724; // km/m^2
 const GLfloat GRAV = 9.81; // used w density
 const GLfloat EPS = 80.0; // val from Moeslund
 
+// alg types
+const GLuint RAND_ALG = 0;
+const GLuint MOESLUND_ALG = 2;
+const GLuint ZOU_ALG = 3;
+const GLuint EXPERIMENTAL_ALG = 4;
+
 #endif
