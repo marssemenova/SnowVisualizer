@@ -25,9 +25,14 @@ private:
 	GLuint programID;
 
 	GLuint MVPID;
+	GLuint MID;
+	GLuint VID;
+	GLuint LightPosID;
+	GLuint alphaID;
 
 	GLuint vertexArrayID;
 	GLuint vertBuffer;
+	GLuint normalBuffer;
 	GLuint colorBuffer;
 
 public:
@@ -42,11 +47,15 @@ public:
 		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
 
 		// create builder
-		snowBuilder = SnowBuilder(diameter, density, extent, isWet); // TODO: rem scale
+		snowBuilder = SnowBuilder(diameter, density, extent, isWet);
 
 		// load shaders
-		programID = LoadShaders( "ColorVertexShader.vertexshader", "ColorFragmentShader.fragmentshader");
+		programID = LoadShaders( "PhongVertexShader.vertexshader", "PhongFragmentShader.fragmentshader");
 		MVPID = glGetUniformLocation(programID, "MVP");
+		MID = glGetUniformLocation(programID, "M");
+		VID = glGetUniformLocation(programID, "V");
+		LightPosID = glGetUniformLocation(programID, "LightPosition_worldspace");
+		alphaID = glGetUniformLocation(programID, "alpha");
 		glUseProgram(programID);
 
 		setupVAO();
@@ -64,7 +73,7 @@ public:
 		// vertices
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9 * 3, data.verts, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.verts, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(
 			0,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -75,14 +84,28 @@ public:
 			(void*) 0                        // array buffer offset
 		);
 
-		// colours
-		glGenBuffers(1, &colorBuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9 * 3, data.colours, GL_STATIC_DRAW);
+		// normals
+		glGenBuffers(1, &normalBuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.normals, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(
 			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
 			3,                                // size
+			GL_FLOAT,                         // type
+			GL_TRUE,                         // normalized?
+			0,                                // stride
+			(void*) 0                        // array buffer offset
+		);
+
+		// colours
+		glGenBuffers(1, &colorBuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 12, data.colours, GL_STATIC_DRAW);
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(
+			2,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			4,                                // size
 			GL_FLOAT,                         // type
 			GL_FALSE,                         // normalized?
 			0,                                // stride
@@ -99,6 +122,10 @@ public:
 		glUseProgram(programID);
 
 		glUniformMatrix4fv(MVPID, 1, GL_FALSE, &MVP[0][0]);
+		glUniformMatrix4fv(MID, 1, GL_FALSE, &M[0][0]);
+		glUniformMatrix4fv(VID, 1, GL_FALSE, &V[0][0]);
+		glUniform3f(LightPosID, lightPos.x, lightPos.y, lightPos.z);
+		glUniform1f(alphaID, 2); // TODO
 
 		glPointSize(3.0f);
 		glDrawArrays(GL_TRIANGLES, 0, data.numPolys*3);

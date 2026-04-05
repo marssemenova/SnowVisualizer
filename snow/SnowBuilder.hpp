@@ -20,29 +20,31 @@ private:
 	GLfloat extent[3][2]; // x range, y range, z range
 	bool isWet;
 
-	GLuint getNumLayers() {
-		return density;
+	// fully random implementation functions
+	GLuint getNumLayersRand() {
+		return getRandInt(3, 6);
 	}
 
 	GLuint getNumPolysRand() {
-		return density*100; // TODO: think of good func, probly also add rand
+		return getRandInt(10, 40)*getNumLayersRand();
 	}
 
+	GLfloat getAlphaRand() {
+		return getRandFloat(0.0, 1.0);
+	}
+
+	// Moeslund implementation
 	GLuint getNumPolysPerLayerMoeslund() {
 		return isWet ? 40 : 10;
 	}
 
-	GLuint getAlpha() {
-		return density; // TODO: think of good func, probly also add rand
-	}
+	// Zou implementation
 
-public:
-	SnowBuilder(GLfloat diameter, GLfloat density, const GLfloat extentInp[3][2], bool isWet) : diameter(diameter), density(density), isWet(isWet) {
-		memcpy(extent, extentInp, 6*sizeof(GLfloat));
-	}
-	SnowBuilder() : SnowBuilder(0.015*pow(abs(DEFAULT_TEMP), -0.35), WET_HUMIDITY_CONST/(0.015*pow(abs(DEFAULT_TEMP), -0.35)), DEFAULT_EXTENT, true) {};
 
-	SnowBuilderData generateSnowOnceRand() { // TODO: make priv
+	// improvement?
+
+
+	SnowBuilderData generateSnowOnceRand() {
 		// set vars
 		GLuint numPolys;
 		GLfloat xPos, yPos, zPos, d, phi, theta, rho, newPhi, newTheta;
@@ -54,11 +56,11 @@ public:
 
 		// set up data obj
 		SnowBuilderData data;
-		numPolys = 2;
+		numPolys = 40;
 		data.numPolys = numPolys;
 		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
-		data.colours = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
+		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
 
 		// gen verts n norms
 		for (int x = 0; x < numPolys*9; x+=9) {
@@ -92,16 +94,23 @@ public:
 		}
 
 		// set colours
-		for (int x = 0; x < numPolys*9; x+=3) {
+		for (int x = 0; x < numPolys*12; x+=4) {
 			for (int i = 0; i < 3; i++) {
-				data.colours[x + i] = getRandFloat(0.0, 1.0);
+				data.colours[x + i] = 1.0;
 			}
+			data.colours[x + 3] = getAlphaRand();
 		}
 
 		return data;
 	}
 
-	SnowBuilderData generateSnowOnce() { // TODO: make priv
+public:
+	SnowBuilder(GLfloat diameter, GLfloat density, const GLfloat extentInp[3][2], bool isWet) : diameter(diameter), density(density), isWet(isWet) {
+		memcpy(extent, extentInp, 6*sizeof(GLfloat));
+	}
+	SnowBuilder() : SnowBuilder(0.015*pow(abs(DEFAULT_TEMP), -0.35), WET_HUMIDITY_CONST/(0.015*pow(abs(DEFAULT_TEMP), -0.35)), DEFAULT_EXTENT, true) {};
+
+	SnowBuilderData generateSnowOnce() {
 		return generateSnowOnceRand();
 	}
 
@@ -109,29 +118,33 @@ public:
 		SnowBuilderData data;
 		SnowBuilderData dataReturned[n];
 		GLuint numEntries = 0;
-		// TODO: concat into 1 obj
 		for (int x = 0; x < n; x++) {
 			dataReturned[x] = generateSnowOnce();
 			numEntries += dataReturned[x].numPolys;
 		}
 
 		data.numPolys = numEntries;
-		data.verts = (GLfloat*) malloc(numEntries*3*sizeof(GLfloat));
-		data.normals = (GLfloat*) malloc(numEntries*3*sizeof(GLfloat));
-		data.colours = (GLfloat*) malloc(numEntries*3*sizeof(GLfloat));
+		data.verts = (GLfloat*) malloc(numEntries*9*sizeof(GLfloat));
+		data.normals = (GLfloat*) malloc(numEntries*9*sizeof(GLfloat));
+		data.colours = (GLfloat*) malloc(numEntries*12*sizeof(GLfloat));
 		GLuint offset = 0;
 		for (int x = 0; x < n; x++) {
-			for (int i = 0; i < dataReturned[x].numPolys*3; i++) {
+			for (int i = 0; i < dataReturned[x].numPolys*9; i++) {
 				data.verts[i + offset] = dataReturned[x].verts[i];
 				data.normals[i + offset] = dataReturned[x].normals[i];
-				data.colours[i + offset] = dataReturned[x].colours[i];
 			}
 
-			offset += dataReturned[x].numPolys*3;
-			numEntries += dataReturned[x].numPolys;
+			offset += dataReturned[x].numPolys*9;
 		}
+		offset = 0;
+		for (int x = 0; x < n; x++) {
+			for (int i = 0; i < dataReturned[x].numPolys*12; i++) {
+				data.colours[i + offset] = dataReturned[x].colours[i]; // TODO: refactor
+				printf("%f %f\n", data.colours[i + offset], dataReturned[x].colours[i]);
+			}
 
-		free(dataReturned);
+			offset += dataReturned[x].numPolys*12;
+		}
 
 		return data;
 	}

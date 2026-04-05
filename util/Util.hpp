@@ -11,6 +11,10 @@ GLfloat getRandFloat(GLfloat min, GLfloat max) {
     return min + (max - min) * (GLfloat) rand() / (GLfloat) RAND_MAX;
 }
 
+GLint getRandInt(GLfloat min, GLfloat max) {
+    return min + (rand() % (int)(max+1-min));
+}
+
 void calcNormal(GLfloat* trig, GLfloat* norm) {
     glm::vec3 p1, p2, p3;
     p1.x = trig[0];
