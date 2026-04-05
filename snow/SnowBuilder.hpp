@@ -98,7 +98,6 @@ private:
 		for (int x = 0; x < n; x++) {
 			for (int i = 0; i < dataReturned[x].numPolys*12; i++) {
 				data.colours[i + offset] = dataReturned[x].colours[i];
-				printf("%f %f\n", data.colours[i + offset], dataReturned[x].colours[i]);
 			}
 
 			offset += dataReturned[x].numPolys*12;
@@ -117,12 +116,11 @@ public:
 	SnowBuilderData generateSnowOnceRand() {
 		// set vars
 		GLuint numPolys;
-		GLfloat d, phi, theta, rho, newPhi, newTheta;
+		GLfloat d, rho, theta, phi, newTheta, newPhi;
 		numPolys = getNumPolysRand();
 
 		// set up data obj
 		SnowBuilderData data;
-		numPolys = 40;
 		data.numPolys = numPolys;
 		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
@@ -133,16 +131,17 @@ public:
 			// gen vars
 			d = getRandFloat(0.5, 1.5)*diameter;
 			rho = d/2.0f;
-			phi = getRandFloat(-90.0, 90.0);
-			theta = getRandFloat(0.0, 360.0);
+			theta = deg2rad(getRandFloat(0.0, 360.0));
+			phi = deg2rad(getRandFloat(-90.0, 90.0));
 
 			data.verts[x] = rho*cos(theta)*sin(phi);
 			data.verts[x+1] = rho*sin(theta)*sin(phi);
 			data.verts[x+2] = rho*cos(theta);
 
 			for (int i = 3; i < 9; i+=3) {
-				newPhi = getRandFloat(phi-EPS, phi+EPS);
 				newTheta = getRandFloat(theta-EPS, theta+EPS);
+				newPhi = getRandFloat(phi-EPS, phi+EPS);
+
 				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
 				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
 				data.verts[x+i+2] = rho*cos(newTheta);
@@ -162,63 +161,97 @@ public:
 	}
 
 	SnowBuilderData generateSnowOnceMoeslund() {
+		return generateSnowOnceRand();
 		// set vars
 		GLuint numPolys;
-		GLfloat d, currD, phi, theta, rho, newPhi, newTheta;
-		GLuint numPolysPerLayer = getNumPolysPerLayerMoeslund();
+		GLfloat d, rho, currRho, theta, phi, newTheta, newPhi;
+		GLuint numPolysPerLayer = getNumPolysPerLayerMoeslund(), numLayers = getNumLayersMoeslund();
 		numPolys = numPolysPerLayer * getNumLayersMoeslund();
 		d = getRandFloat(0.5, 1.5)*diameter;
-		GLfloat layerH = d/(numPolysPerLayer+1);
+		GLfloat layerH = (d/2.0f)/numLayers;
 
 		// set up data obj
 		SnowBuilderData data;
-		numPolys = 40;
 		data.numPolys = numPolys;
 		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
 
 		// gen first layer verts n norms
-		currD = layerH;
+		GLfloat sphericalCoords[numPolys*9]; // rho, theta, phi
+		currRho = layerH;
 		for (int x = 0; x < numPolysPerLayer*9; x+=9) {
 			// gen vars
-			rho = currD/2.0f;
-			phi = getRandFloat(-90.0, 90.0);
-			theta = getRandFloat(0.0, 360.0);
+			rho = getRandFloat(currRho-layerH, currRho+layerH);
+			theta = deg2rad(getRandFloat(0.0, 360.0));
+			phi = deg2rad(getRandFloat(-90.0, 90.0));
 
 			data.verts[x] = rho*cos(theta)*sin(phi);
 			data.verts[x+1] = rho*sin(theta)*sin(phi);
 			data.verts[x+2] = rho*cos(theta);
 
+			sphericalCoords[x] = rho;
+			sphericalCoords[x+1] = theta;
+			sphericalCoords[x+2] = phi;
+
 			for (int i = 3; i < 9; i+=3) {
-				newPhi = getRandFloat(phi-EPS, phi+EPS);
+				rho = getRandFloat(currRho-layerH, currRho+layerH);
 				newTheta = getRandFloat(theta-EPS, theta+EPS);
+				newPhi = getRandFloat(phi-EPS, phi+EPS);
+
 				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
 				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
 				data.verts[x+i+2] = rho*cos(newTheta);
+
+				sphericalCoords[x+i] = rho;
+				sphericalCoords[x+i+1] = newTheta;
+				sphericalCoords[x+i+2] = newPhi;
 			}
 			calcNormal(&(data.verts[x]), &(data.normals[x]));
 		}
 
 		// gen verts n norms
-		for (int x = 0; x < numPolys*9; x+=9) {
+		GLuint refTrig, refPt, refPtInd;
+		GLfloat x0, y0, z0, refRho;
+		GLfloat pt[3];
+		for (int x = numPolysPerLayer*9; x < numPolys*9; x+=numPolysPerLayer*9) {
+			// updates
+			currRho += layerH;
+
 			// gen vars
-			rho = d/2.0f;
-			phi = getRandFloat(-90.0, 90.0);
-			theta = getRandFloat(0.0, 360.0);
+			for (int y = 0; y < numPolysPerLayer*9; y+=9) {
+				refTrig = getRandInt(0, numPolysPerLayer-1);
+				refPtInd = getRandInt(0, 3);
+				refPt = x - numPolysPerLayer*9 + refTrig*9 + refPtInd*3;
 
-			data.verts[x] = rho*cos(theta)*sin(phi);
-			data.verts[x+1] = rho*sin(theta)*sin(phi);
-			data.verts[x+2] = rho*cos(theta);
+				findPointInTriangle(&(data.verts[x - numPolysPerLayer*9 + refTrig*9]), pt);
+				refRho = sqrt(pow(pt[0], 2) + pow(pt[1], 2) + pow(pt[2], 2));
+				theta = sphericalCoords[refPt+1];
+				phi = sphericalCoords[refPt+2];
 
-			for (int i = 3; i < 9; i+=3) {
-				newPhi = getRandFloat(phi-EPS, phi+EPS);
-				newTheta = getRandFloat(theta-EPS, theta+EPS);
-				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
-				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
-				data.verts[x+i+2] = rho*cos(newTheta);
+				data.verts[x+y] = refRho*cos(theta)*sin(phi);
+				data.verts[x+y+1] = refRho*sin(theta)*sin(phi);
+				data.verts[x+y+2] = refRho*cos(theta);
+
+				sphericalCoords[x+y] = refRho;
+				sphericalCoords[x+y+1] = theta;
+				sphericalCoords[x+y+2] = phi;
+
+				for (int i = 3; i < 9; i+=3) {
+					rho = getRandFloat(currRho-layerH, currRho+layerH);
+					newTheta = getRandFloat(theta-EPS, theta+EPS);
+					newPhi = getRandFloat(phi-EPS, phi+EPS);
+
+					data.verts[x+y+i] = rho*cos(newTheta)*sin(newPhi);
+					data.verts[x+y+i+1] = rho*sin(newTheta)*sin(newPhi);
+					data.verts[x+y+i+2] = rho*cos(newTheta);
+
+					sphericalCoords[x+y+i] = rho;
+					sphericalCoords[x+y+i+1] = newTheta;
+					sphericalCoords[x+y+i+2] = newPhi;
+				}
+				calcNormal(&(data.verts[x+y]), &(data.normals[x+y]));
 			}
-			calcNormal(&(data.verts[x]), &(data.normals[x]));
 		}
 
 		// set colours

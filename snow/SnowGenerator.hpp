@@ -70,7 +70,7 @@ public:
 		glBindVertexArray(vertexArrayID);
 
 		// gen snow
-		data = snowBuilder.generateSnowRand(2, extent);
+		data = snowBuilder.generateSnowOnceMoeslund();
 
 		// vertices
 		glGenBuffers(1, &vertBuffer);

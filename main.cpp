@@ -45,7 +45,7 @@ int main() {
 
     // temp input vars, TODO: del n get thru CLI
     GLuint numParticles = 1;
-    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0, scale = 50.0f;
+    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0, scale = 100.0f;
     GLfloat temp = -5.0;
     bool isWet = true;
 

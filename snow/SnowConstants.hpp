@@ -37,7 +37,7 @@ const GLfloat DEFAULT_EXTENT[3][2] = {{-100, 100}, {-100, 100}, {-100, 100}}; //
 const GLfloat DRY_HUMIDITY_CONST = 0.17; // km/m^2
 const GLfloat WET_HUMIDITY_CONST = 0.724; // km/m^2
 const GLfloat GRAV = 9.81; // used w density
-const GLfloat EPS = 80.0; // val from Moeslund
+const GLfloat EPS = deg2rad(80.0); // val from Moeslund
 
 // alg types
 const GLuint RAND_ALG = 0;
