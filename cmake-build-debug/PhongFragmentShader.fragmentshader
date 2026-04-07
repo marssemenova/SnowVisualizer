@@ -15,7 +15,7 @@ void main(){
 
     // Material properties
     vec4 diffuse = colour_in;
-    vec4 ambient = vec4(0.2,0.2,0.2, colour_in.a);
+    vec4 ambient = vec4(1.0,1.0,1.0, colour_in.a);
     vec4 specular = vec4(0.7, 0.7, 0.7, colour_in.a);
 
     vec3 n = normalize( Normal_cameraspace );

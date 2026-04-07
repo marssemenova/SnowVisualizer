@@ -272,7 +272,14 @@ public:
 	}
 
 	SnowBuilderData generateSnowOnceZou() { // TODO
+		SnowBuilderData data;
+		SnowBuilderData moeslund = generateSnowOnceMoeslund();
 
+		// init linked list
+
+		//
+
+		return moeslund;
 	}
 
 	SnowBuilderData generateSnowOnceExperimental() { // TODO

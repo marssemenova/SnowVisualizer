@@ -15,7 +15,7 @@ GLint getRandInt(GLfloat min, GLfloat max) {
     return min + (rand() % (int)(max+1-min));
 }
 
-void calcNormal(GLfloat* trig, GLfloat* norm) {
+void calcNormal(GLfloat* trig, GLfloat* norm) { // TODO: get right 1
     glm::vec3 p1, p2, p3;
     p1.x = trig[0];
     p1.y = trig[1];
@@ -33,9 +33,14 @@ void calcNormal(GLfloat* trig, GLfloat* norm) {
     v1 = glm::cross(v1,v2);
     v1 = glm::normalize(v1);
     for (int x = 0; x < 9; x+=3) {
-        norm[x] = v1[0];
-        norm[x+1] = v1[1];
-        norm[x+2] = v1[2];
+        glm::vec3 v(trig[x], trig[x+1], trig[x+2]);
+        v = glm::normalize(v);
+        norm[x] = v[0];
+        norm[x+1] = v[1];
+        norm[x+2] = v[2];
+        //norm[x] = v1[0];
+        //norm[x+1] = v1[1];
+        //norm[x+2] = v1[2];
     }
 }
 
