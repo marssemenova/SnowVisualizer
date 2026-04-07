@@ -17,7 +17,7 @@ private:
 	GLfloat temp; // C
 	GLfloat extent[3][2]; // x range, y range, z range
 	GLfloat density; // calced
-	GLfloat diameter; // calced
+	GLfloat diameter; // calced, in cm
 	GLfloat alpha;
 	SnowBuilder snowBuilder;
 	SnowBuilderData data;
@@ -46,6 +46,7 @@ public:
 			diameter = 0.04;
 		}
 		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
+		diameter *= 100.0; // to cm
 		alpha = isWet ? 3.0 : 2.0; // TODO: experiment to get good values
 
 		// create builder

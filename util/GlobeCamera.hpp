@@ -70,8 +70,8 @@ glm::vec3 cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     if (phi >= _PI) {
         phi = 0.9999999 * _PI;
     }
-    if (phi <= -_PI) {
-        phi = -0.9999999 * _PI;
+    if (phi <= 0) {
+        phi = 0.0000001;
     }
 
     glm::vec3 direction(

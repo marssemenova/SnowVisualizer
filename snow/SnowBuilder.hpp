@@ -15,7 +15,7 @@
 class SnowBuilder {
 private:
 	// params
-	GLfloat diameter; // fluctuates by 50%
+	GLfloat diameter; // fluctuates by 50%, in cm
 	GLfloat density; // affects amt of layers + amt of polys + alpha
 	bool isWet;
 
@@ -34,7 +34,7 @@ private:
 
 	// Moeslund implementation
 	GLuint getNumLayersMoeslund() {
-		return isWet ? 6 : 3; // TODO: ???
+		return 6; // TODO: ???
 	}
 
 	GLuint getNumPolysPerLayerMoeslund() {
@@ -46,7 +46,6 @@ private:
 	}
 
 	// Zou implementation
-
 
 	// improvement?
 
@@ -165,7 +164,7 @@ public:
 		GLuint numPolys;
 		GLfloat d, rho, currRho, theta, phi, newTheta, newPhi;
 		GLuint numPolysPerLayer = getNumPolysPerLayerMoeslund(), numLayers = getNumLayersMoeslund();
-		numPolys = numPolysPerLayer * getNumLayersMoeslund();
+		numPolys = numPolysPerLayer * numLayers;
 		d = getRandFloat(0.5, 1.5)*diameter;
 		GLfloat layerH = (d/2.0f)/numLayers;
 
@@ -177,41 +176,38 @@ public:
 		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
 
 		// gen first layer verts n norms
-		GLfloat sphericalCoords[numPolys*9]; // rho, theta, phi
 		currRho = layerH;
 		for (int x = 0; x < numPolysPerLayer*9; x+=9) {
 			// gen vars
 			rho = getRandFloat(currRho-layerH, currRho+layerH);
+			if (rho == 0.0f) {
+				rho = 0.000001f;
+			}
 			theta = deg2rad(getRandFloat(0.0, 360.0));
-			phi = deg2rad(getRandFloat(-90.0, 90.0));
+			phi = deg2rad(getRandFloat(0.0, 180.0));
 
 			data.verts[x] = rho*cos(theta)*sin(phi);
 			data.verts[x+1] = rho*sin(theta)*sin(phi);
 			data.verts[x+2] = rho*cos(phi);
 
-			sphericalCoords[x] = rho;
-			sphericalCoords[x+1] = theta;
-			sphericalCoords[x+2] = phi;
-
 			for (int i = 3; i < 9; i+=3) {
 				rho = getRandFloat(currRho-layerH, currRho+layerH);
+				if (rho == 0.0f) {
+					rho = 0.000001f;
+				}
 				newTheta = getRandFloat(theta-EPS, theta+EPS);
 				newPhi = getRandFloat(phi-EPS, phi+EPS);
 
 				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
 				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
 				data.verts[x+i+2] = rho*cos(newPhi);
-
-				sphericalCoords[x+i] = rho;
-				sphericalCoords[x+i+1] = newTheta;
-				sphericalCoords[x+i+2] = newPhi;
 			}
 			calcNormal(&(data.verts[x]), &(data.normals[x]));
 		}
 
 		// gen verts n norms
 		GLuint refTrig, refPt, refPtInd;
-		GLfloat x0, y0, z0, refRho;
+		GLfloat newRho, refTheta, refPhi, refX, refY, refZ;
 		GLfloat pt[3];
 		for (int x = numPolysPerLayer*9; x < numPolys*9; x+=numPolysPerLayer*9) {
 			// updates
@@ -224,30 +220,41 @@ public:
 				refPt = x - numPolysPerLayer*9 + refTrig*9 + refPtInd*3;
 
 				findPointInTriangle(&(data.verts[x - numPolysPerLayer*9 + refTrig*9]), pt);
-				refRho = sqrt(pow(pt[0], 2) + pow(pt[1], 2) + pow(pt[2], 2));
-				theta = sphericalCoords[refPt+1];
-				phi = sphericalCoords[refPt+2];
+				newRho = sqrt(pow(pt[0], 2) + pow(pt[1], 2) + pow(pt[2], 2));
+				refX = data.verts[refPt], refY = data.verts[refPt + 1], refZ = data.verts[refPt+ 2];
+				if (refX == 0) {
+					refTheta = refY > 0 ? _PI/2.0f : -_PI/2.0f;
+				} else {
+					refTheta = atan(refY/refX);
+					if (refX < 0) {
+						if (refY >= 0) {
+							refTheta += _PI;
+						} else {
+							refTheta -= _PI;
+						}
+					}
+				}
+				if (refZ == 0 && sqrt(pow(refX, 2) + pow(refY, 2)) != 0) {
+					refPhi = _PI/2.0f;
+				} else {
+					refPhi = atan(sqrt(pow(refX, 2) + pow(refY, 2))/refZ);
+					if (refZ < 0) {
+						refPhi += _PI;
+					}
+				}
 
-				data.verts[x+y] = refRho*cos(theta)*sin(phi);
-				data.verts[x+y+1] = refRho*sin(theta)*sin(phi);
-				data.verts[x+y+2] = refRho*cos(phi);
-
-				sphericalCoords[x+y] = refRho;
-				sphericalCoords[x+y+1] = theta;
-				sphericalCoords[x+y+2] = phi;
+				data.verts[x+y] = newRho*cos(refTheta)*sin(refPhi);
+				data.verts[x+y+1] = newRho*sin(refTheta)*sin(refPhi);
+				data.verts[x+y+2] = newRho*cos(refPhi);
 
 				for (int i = 3; i < 9; i+=3) {
 					rho = getRandFloat(currRho-layerH, currRho+layerH);
-					newTheta = getRandFloat(theta-EPS, theta+EPS);
-					newPhi = getRandFloat(phi-EPS, phi+EPS);
+					newTheta = getRandFloat(refTheta-EPS, refTheta+EPS);
+					newPhi = getRandFloat(refPhi-EPS, refPhi+EPS);
 
 					data.verts[x+y+i] = rho*cos(newTheta)*sin(newPhi);
 					data.verts[x+y+i+1] = rho*sin(newTheta)*sin(newPhi);
 					data.verts[x+y+i+2] = rho*cos(newPhi);
-
-					sphericalCoords[x+y+i] = rho;
-					sphericalCoords[x+y+i+1] = newTheta;
-					sphericalCoords[x+y+i+2] = newPhi;
 				}
 				calcNormal(&(data.verts[x+y]), &(data.normals[x+y]));
 			}
