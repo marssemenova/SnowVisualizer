@@ -38,7 +38,7 @@ private:
 	}
 
 	GLuint getNumPolysPerLayerMoeslund() {
-		return isWet ? 40 : 10;
+		return isWet ? 40 : 10; // TODO: for Zou says only needs to be 1/4 ot the other
 	}
 
 	GLfloat getAlphaMoeslund() {
@@ -64,8 +64,11 @@ private:
 			if (alg == MOESLUND_ALG) {
 				dataReturned[x] = generateSnowOnceMoeslund();
 			}
-			if (alg == ZOU_ALG) {
-				dataReturned[x] = generateSnowOnceZou();
+			if (alg == ZOU_ALG_SPLIT) {
+				dataReturned[x] = generateSnowOnceZouSplit();
+			}
+			if (alg == ZOU_ALG_EXPAND) {
+				dataReturned[x] = generateSnowOnceZouExpand();
 			}
 			if (alg == EXPERIMENTAL_ALG) {
 				dataReturned[x] = generateSnowOnceExperimental();
@@ -271,15 +274,60 @@ public:
 		return data;
 	}
 
-	SnowBuilderData generateSnowOnceZou() { // TODO
+	SnowBuilderData generateSnowOnceZouSplit() {
 		SnowBuilderData data;
 		SnowBuilderData moeslund = generateSnowOnceMoeslund();
 
-		// init linked list
+		// init linked lists (new + old)
 
-		//
+		// loop thru old list
+			// get 3 rand pts on edges
+
+			// add trigs x4 (TODO: what is the txt doing - i think used for rendering the snow as 2D textures (billboard technique or smth))
+
+		// smooth all
+
+			// TODO:? how do you "observe"???
 
 		return moeslund;
+	}
+
+	SnowBuilderData generateSnowOnceZouExpand() {
+		SnowBuilderData data;
+		SnowBuilderData moeslund = generateSnowOnceMoeslund();
+
+		// init linked lists (new + old)
+
+		// loop thru old list
+			// decrease A of og trig
+
+			// add og trig
+
+			// find new verts by expanding trig via symmetry
+
+			// add trig x3
+
+			// smooth 3 new
+			// TODO:? how do you "observe"???
+
+		// ----- alt alg
+		// loop thru old list
+			// decrease A of og trig
+
+			// add og trig
+
+			// find new verts by expanding trig via symmetry
+
+			// trans new trigs formed so that new verts are aligned w og verts
+		//----
+
+		// set alpha of trigs formed w expanding pt to 1 + the inner trig to 0 (TODO: ??? just dont add???)
+
+		return moeslund;
+	}
+
+	SnowBuilderData generateSnowOnceZou() {
+		return generateSnowOnceZouExpand();
 	}
 
 	SnowBuilderData generateSnowOnceExperimental() { // TODO
@@ -298,8 +346,16 @@ public:
 		return generateSnow(n, extent, MOESLUND_ALG);
 	}
 
-	SnowBuilderData generateSnowZou(GLuint n, const GLfloat extent[3][2]) {
-		return generateSnow(n, extent, ZOU_ALG);
+	SnowBuilderData generateSnowZouSplit(GLuint n, const GLfloat extent[3][2]) {
+		return generateSnow(n, extent, ZOU_ALG_SPLIT);
+	}
+
+	SnowBuilderData generateSnowZouExpand(GLuint n, const GLfloat extent[3][2]) {
+		return generateSnow(n, extent, ZOU_ALG_EXPAND);
+	}
+
+	SnowBuilderData generateSnowZou(GLuint n, const GLfloat extent[3][2]) { // def = expand
+		return generateSnow(n, extent, ZOU_ALG_EXPAND);
 	}
 
 	SnowBuilderData generateSnowExperimental(GLuint n, const GLfloat extent[3][2]) {

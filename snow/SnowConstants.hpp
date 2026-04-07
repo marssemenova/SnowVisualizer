@@ -42,7 +42,8 @@ const GLfloat EPS = deg2rad(80.0); // val from Moeslund
 // alg types
 const GLuint RAND_ALG = 0;
 const GLuint MOESLUND_ALG = 2;
-const GLuint ZOU_ALG = 3;
-const GLuint EXPERIMENTAL_ALG = 4;
+const GLuint ZOU_ALG_SPLIT = 3;
+const GLuint ZOU_ALG_EXPAND = 4;
+const GLuint EXPERIMENTAL_ALG = 5;
 
 #endif

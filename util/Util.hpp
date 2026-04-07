@@ -38,9 +38,6 @@ void calcNormal(GLfloat* trig, GLfloat* norm) { // TODO: get right 1
         norm[x] = v[0];
         norm[x+1] = v[1];
         norm[x+2] = v[2];
-        //norm[x] = v1[0];
-        //norm[x+1] = v1[1];
-        //norm[x+2] = v1[2];
     }
 }
 
