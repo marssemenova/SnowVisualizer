@@ -8,6 +8,10 @@
 #ifndef _CAM_CONTROLS_H_
 #define _CAM_CONTROLS_H_
 
+// cam enums
+const GLuint GLOBE_CAM = 1;
+const GLuint FIRST_PERSON_CAM = 2;
+
 void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     glm::vec3 targ = {0.0f, 0.0f, 0.0f};
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
@@ -89,35 +93,14 @@ void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
 
     // Move forward
     if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS) {
-        //radiusFromOrigin -= deltaTime * speed;
+        radiusFromOrigin -= deltaTime * speed;
     }
     // Move backward
     if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS) {
-        //radiusFromOrigin += deltaTime * speed;
-    }
-
-    float dxpos = 0.0f, dypos = 0.0f;
-    float speedPos = 0.5f;
-    // Move forward
-    if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS) {
-        dypos += deltaTime * speedPos;
-    }
-    // Move backward
-    if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS) {
-        dypos -= deltaTime * speedPos;
-    }
-    // Rotate counterclockwise
-    if (glfwGetKey( window, GLFW_KEY_LEFT ) == GLFW_PRESS) {
-        dxpos -= deltaTime * speedPos;
-    }
-    // rotate clockwise
-    if (glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS) {
-        dxpos += deltaTime * speedPos;
+        radiusFromOrigin += deltaTime * speed;
     }
 
     position = -1.0f * direction * radiusFromOrigin;
-    position.x += dxpos;
-    position.y += dypos;
     V = glm::lookAt(position, targ, up);
 }
 
@@ -129,31 +112,37 @@ void cameraControlsFirstPerson(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) 
     float deltaTime = (currentTime - lastTime);
     lastTime = currentTime;
 
-    float dx = 0.0f, dy = 0.0f;
-    float speed = 0.5f;
+    float dx = 0.0f, dy = 0.0f, dz = 0.0f;
+    float speed = 1.0f;
     // Move forward
-    if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS) {
+    if (glfwGetKey( window, GLFW_KEY_LEFT_SHIFT ) == GLFW_PRESS) {
         dy += deltaTime * speed;
     }
     // Move backward
-    if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS) {
+    if (glfwGetKey( window, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS) {
         dy -= deltaTime * speed;
     }
     // Rotate counterclockwise
-    if (glfwGetKey( window, GLFW_KEY_LEFT ) == GLFW_PRESS) {
+    if (glfwGetKey( window, GLFW_KEY_A ) == GLFW_PRESS) {
         dx -= deltaTime * speed;
     }
     // rotate clockwise
-    if (glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS) {
+    if (glfwGetKey( window, GLFW_KEY_D ) == GLFW_PRESS) {
         dx += deltaTime * speed;
     }
-
-    theta += dx;
-    glm::vec3 dir(cos(theta), 0, sin(theta));
-
-    if (dy != 0.0f) {
-        position += dy*dir;
+    // Move up
+    if (glfwGetKey( window, GLFW_KEY_W ) == GLFW_PRESS) {
+        dz -= deltaTime * speed;
     }
+    // Move down
+    if (glfwGetKey( window, GLFW_KEY_S ) == GLFW_PRESS) {
+        dz += deltaTime * speed;
+    }
+
+    glm::vec3 dir(0.0, 0, -1.0);
+    position.x += dx;
+    position.y += dy;
+    position.z += dz;
 
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     V = glm::lookAt(position, position + dir, up);

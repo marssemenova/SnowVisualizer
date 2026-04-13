@@ -31,8 +31,8 @@
 using namespace glm;
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 1280;
+const unsigned int SCR_HEIGHT = 720;
 
 // consts
 static const double _PI = 2.0*asin(1);
@@ -41,5 +41,6 @@ static const double _PI = 2.0*asin(1);
 #include "Shader.hpp"
 #include "Axes.hpp"
 #include "Sphere.hpp"
+#include "CameraControls.hpp"
 
 #endif

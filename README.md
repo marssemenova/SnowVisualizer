@@ -35,15 +35,34 @@ Running the execulable will generate snow based on preset parameters. Due to tim
 the CLI was not implemented so you will have to change parameters in the runner (`main.cpp`) before
 compiling.
 
+#### Camera
+
+There are 2 available cameras: globe (mouse drag around the origin, up/down arrow to zoom in/out) and 
+first person (WASD and LSHIFT/LCTRL). The default is globe but you can change this in the runner
+(`main.cpp`) by setting `whichCam` to `FIRST_PERSON_CAM` instead of `GLOBE_CAM`. Ideally the functionality
+of these would be merged but due to time and the complexity of trigonometry this is not implemented. 
 
 ## Implementation
 
-The API is implemented in `/snow/SnowBuilder.hpp`, and `/snow/SnowGenerator.hpp` shows an example of using the API. Relevant constants are 
-defined in `/snow/SnowConstants.hpp`. The API works by instantiating a SnowBuilder object with a given temperature which then enables 
+The API is implemented in `/snow/SnowGenerator.hpp`, and `/snow/SnowRenderer.hpp` shows an example of using the API. Relevant constants are 
+defined in `/snow/SnowConstants.hpp`. The API works by instantiating a `SnowGenerator` object with a given temperature which then enables 
 a user to call an assortment of methods to generate snow by specifying the number of particles to generate and the extent of 
 the volume within which snow is generated. The algorithm used to generate the snow is chosen by calling the method for the
 desired algorithm. The simple Phong shaders used for the snow are `/cmake-build-debug/shaders/PhongVertexShader.vertexshader`
 and `/cmake-build-debug/shaders/PhongFragmentShader.fragmentshader`. The runner is `main.cpp`.
+
+### Experimentation
+
+The experiments discussed in the report are implemented in `/snow/SnowGeneratorExperimentation.hpp`. The parameter 
+`whichExperiment` which is passed to the constructor in this class has the following possible values to indicate which 
+experiment to run, with the letters indicating the label given to the experiment in the report:
+- 
+- `DEG_OF_ALLOWANCE_EXP` (a)
+- `DEG_OF_ALLOWANCE_VARIANCE_EXP` (a)
+- `OPACITY_EXP` (b)
+- `NUM_LAYERS_EXP` (c)
+- `LAYER_H_VARIANCE_EXP` (d)
+- `SHININESS_EXP` (e)
 
 ## Documents
 
@@ -51,6 +70,7 @@ Any documents related to this project are available in `/docs/`.
 
 ## Future Work
 
+TODO
 
 ## Citations
 [1]	T. B. Moeslund et al. “Modeling Falling and Accumulating Snow”. In: Second
@@ -67,9 +87,11 @@ and Service. Association for Computing Machinery, 2010, pp. 199–202. ISBN:
 ## TODOs
 
 - Parse input args + if empty use experiment
-- get right normal
-- const comments
-- enable extend + if extent equal gen at that pos.
-- test api
+- Combine cams in `CameraControls.hpp`
+- More rigorous test framework
+- Better error-trapping
+- Improve shader
+- Prevent generated triangles from intersecting
+- Optimization + parallelization (setup for GPU)
 
 

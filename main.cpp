@@ -8,8 +8,8 @@
 
 #include "util/Constants.hpp"
 
-#include "util/CameraControls.hpp"
-#include "snow/SnowGenerator.hpp"
+#include "snow/SnowRenderer.hpp"
+#include "snow/SnowGeneratorExperimentation.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -44,9 +44,11 @@ int main() {
     }
 
     // temp input vars (TODO: get from CLI args)
-    GLuint numParticles = 1, whichAlg = MOESLUND_ALG;
+    GLuint numParticles = 1;
+    GLuint whichAlg = MOESLUND_ALG, whichCam = FIRST_PERSON_CAM, whichExp = DEG_OF_ALLOWANCE_EXP;
     GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0;
     GLfloat temp = -5.0;
+    bool test = true;
 
     // def vars
     float screenW = SCR_WIDTH;
@@ -57,22 +59,37 @@ int main() {
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
     // dark blue background
-    glClearColor(0.1f, 0.1f, 0.3f, 0.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     // set up rendering vars
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), screenW/screenH, 0.001f, 1000.0f);
-    glm::vec3 eye = {0.0f, 3.0f, 5.0f};
+    glm::vec3 eye;
+    if (whichCam == GLOBE_CAM) {
+        eye= {0.0f, 3.0f, 5.0f};
+    } else {
+        eye = {0.0f, 0.0f, 3.0f};
+    }
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     glm::vec3 center = {0.0f, 0.0f, 0.0f};
 
     glm::mat4 V = glm::lookAt(eye, center, up);
-    cameraControlsGlobe(V, eye, window);
+    if (whichCam == GLOBE_CAM) {
+        cameraControlsGlobe(V, eye, window);
+    } else {
+        cameraControlsFirstPerson(V, eye, window);
+    }
     glm::mat4 MSnow(1.0f);
     glm::vec3 lightpos(5.0f, 5.0f, 5.0f);
 
     // setup snow gen obj
-    GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
-    SnowGenerator snowGen(numParticles, extent, temp, whichAlg);
+    SnowRenderer snowGen;
+    SnowGeneratorExperimentation snowGenExp;
+    if (!test) {
+        GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
+        snowGen = *(new SnowRenderer(numParticles, extent, temp, whichAlg));
+    } else {
+        snowGenExp = *(new SnowGeneratorExperimentation(whichExp));
+    }
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -82,9 +99,17 @@ int main() {
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
-        snowGen.draw(lightpos, MSnow, V, Projection);
+        if (!test) {
+            snowGen.draw(lightpos, MSnow, V, Projection);
+        } else {
+            snowGenExp.draw(lightpos, MSnow, V, Projection);
+        }
 
-        cameraControlsGlobe(V, eye, window);
+        if (whichCam == GLOBE_CAM) {
+            cameraControlsGlobe(V, eye, window);
+        } else {
+            cameraControlsFirstPerson(V, eye, window);
+        }
 
         // process/log the error
         while ((err = glGetError()) != GL_NO_ERROR) {
