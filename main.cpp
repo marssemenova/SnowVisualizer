@@ -5,8 +5,8 @@
  * @author Mars Semenova, Dr. Alexander Brandt
  * @date March 30, 2026
  */
+
 #include "util/Constants.hpp"
-#include "sample/LoadBMP.hpp"
 
 #include "util/GlobeCamera.hpp"
 #include "snow/SnowGenerator.hpp"
@@ -44,16 +44,14 @@ int main() {
     }
 
     // temp input vars, TODO: del n get thru CLI
-    GLuint numParticles = 1;
-    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0, scale = 1.0f;
+    GLuint numParticles = 1, whichAlg = MOESLUND_ALG;
+    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0;
     GLfloat temp = -5.0;
-    bool isWet = true;
 
     // def vars
     float screenW = SCR_WIDTH;
     float screenH = SCR_HEIGHT;
     GLenum err;
-    Axes axes(glm::vec3(0,  0, 0), glm::vec3(5.0f, 5.0f, 5.0f));
 
     // ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
@@ -70,21 +68,11 @@ int main() {
     glm::mat4 V = glm::lookAt(eye, center, up);
     cameraControlsGlobe(V, eye, window);
     glm::mat4 MSnow(1.0f);
-    MSnow = glm::scale(MSnow, glm::vec3(scale, scale, scale));
-    glm::mat4 MAxes(1.0f);
     glm::vec3 lightpos(5.0f, 5.0f, 5.0f);
 
-    Sphere sphere;
-    sphere.setUpAxis(2);
-    sphere.setRadius((0.008540*0.5)/2);
-    glm::vec4 color1(0.f, 0.8f, 0.8f, 0.1f);
-    glm::mat4 M1(1.0f);
-    M1 = glm::scale(M1, glm::vec3(50.0f, 50.0f, 50.0f));
-    float alpha1 = 2;
-
     // setup snow gen obj
-    GLfloat extent[3][2] = {{minX/scale, maxX/scale}, {minY/scale, maxY/scale}, {minZ/scale, maxZ/scale}};
-    SnowGenerator snowGen(numParticles, extent, temp, isWet);
+    GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
+    SnowGenerator snowGen(numParticles, extent, temp, whichAlg);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -94,8 +82,6 @@ int main() {
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
-        //axes.draw(MAxes, V, Projection);
-        //sphere.draw(lightpos, M1, V, Projection, color1, alpha1);
         snowGen.draw(lightpos, MSnow, V, Projection);
 
         cameraControlsGlobe(V, eye, window);

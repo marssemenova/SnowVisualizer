@@ -128,10 +128,10 @@ Sphere::Sphere(float radius, int sectors, int stacks, bool smooth, int up, bool 
         // Create and compile our GLSL program from the shaders
 
         if (tex) {
-            programID = LoadShaders( "PhongTexture.vertexshader", "GlobeTexture.fragmentshader" );
+            programID = LoadShaders( "shaders/PhongTexture.vertexshader", "shaders/GlobeTexture.fragmentshader" );
 
         } else {
-            programID = LoadShaders( "DiffuseShader.vertexshader", "DiffuseShader.fragmentshader" );
+            programID = LoadShaders( "shaders/DiffuseShader.vertexshader", "shaders/DiffuseShader.fragmentshader" );
 
         }
         // programID = LoadShaders( "TransformVertexShader.vertexshader", "ColorFragmentShader.fragmentshader" );

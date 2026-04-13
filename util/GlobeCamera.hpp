@@ -4,6 +4,7 @@
  *
  * @author Dr. Alexander Brandt, Mars Semenova
  */
+
 #ifndef _CAM_CONTROLS_H_
 #define _CAM_CONTROLS_H_
 

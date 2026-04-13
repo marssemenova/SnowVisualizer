@@ -5,6 +5,7 @@
  * @author Mars Semenova
  * @date March 30, 2026
  */
+
 #ifndef SNOWCONSTANTS_HPP
 #define SNOWCONSTANTS_HPP
 
@@ -34,16 +35,15 @@ const GLfloat DEFAULT_TEMP = -15.0; // C
 const GLfloat DEFAULT_EXTENT[3][2] = {{-100, 100}, {-100, 100}, {-100, 100}}; // x range, y range, z range
 
 // consts
+const GLfloat SNOW_STATE_THRESH = -1.0; // above = wet, below = dry
+const GLfloat DIAMETER_THRESH = -0.061;
 const GLfloat DRY_HUMIDITY_CONST = 0.17; // km/m^2
 const GLfloat WET_HUMIDITY_CONST = 0.724; // km/m^2
 const GLfloat GRAV = 9.81; // used w density
 const GLfloat EPS = deg2rad(80.0); // val from Moeslund
 
 // alg types
-const GLuint RAND_ALG = 0;
-const GLuint MOESLUND_ALG = 2;
-const GLuint ZOU_ALG_SPLIT = 3;
-const GLuint ZOU_ALG_EXPAND = 4;
-const GLuint EXPERIMENTAL_ALG = 5;
+const GLuint MOESLUND_ALG = 1;
+const GLuint EXPERIMENTAL_ALG = 2;
 
 #endif

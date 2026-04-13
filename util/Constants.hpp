@@ -4,6 +4,7 @@
  * @author Mars Semenova
  * @date March 30, 2026
  */
+
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 

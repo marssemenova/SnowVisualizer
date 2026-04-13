@@ -4,6 +4,7 @@
  * @author Mars Semenova
  * @date March 30, 2026
  */
+
 #ifndef SNOWGENERATOR_HPP
 #define SNOWGENERATOR_HPP
 
@@ -16,11 +17,10 @@ private:
 	GLuint numParticles;
 	GLfloat temp; // C
 	GLfloat extent[3][2]; // x range, y range, z range
-	GLfloat density; // calced
-	GLfloat diameter; // calced, in cm
 	GLfloat alpha;
 	SnowBuilder snowBuilder;
 	SnowBuilderData data;
+	GLuint whichAlg;
 
 	// render params
 	GLuint programID;
@@ -37,23 +37,27 @@ private:
 	GLuint colorBuffer;
 
 public:
-	SnowGenerator(GLuint numParticles, const GLfloat extentInp[3][2], GLfloat temp, bool isWet) : numParticles(numParticles), temp(temp) {
+	/**
+	 * Constructor for SnowGenerator.
+	 * @param numParticles - Number of snow particles to generate.
+	 * @param extentInp - Extent of volume in which to generate the particles, where extentInp[0] is a pair for the x extent,
+	 * extentInp[1] is a pair for the y extent, and extentInp[2] is a pair for the z extent. If numParticles = 1 this
+	 * parameter has no effect and the snow particle is generated at the origin.
+	 * @param temp - Temperature of the simulation.
+	 * @param whichAlg - Which algorithm to use for the snow particle generation. Either the Moeslund algorithm (1) or the
+	 * experimental algorithm (2). Constants for these are defined in SnowConstants.hpp (MOESLUND_ALG and EXPERIMENTAL_ALG, respectively).
+	 */
+	SnowGenerator(GLuint numParticles, const GLfloat extentInp[3][2], GLfloat temp, GLuint whichAlg) : numParticles(numParticles), temp(temp), whichAlg(whichAlg) {
 		// set vars
 		memcpy(extent, extentInp, 6*sizeof(GLfloat));
-		if (temp <= -0.061) {
-			diameter = 0.015*pow(abs(temp), -0.35);
-		} else {
-			diameter = 0.04;
-		}
-		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
-		diameter *= 100.0; // to cm
+		bool isWet = temp >= SNOW_STATE_THRESH;
 		alpha = isWet ? 3.0 : 2.0; // TODO: experiment to get good values
 
 		// create builder
-		snowBuilder = SnowBuilder(diameter, density, isWet);
+		snowBuilder = SnowBuilder(temp);
 
 		// load shaders
-		programID = LoadShaders( "PhongVertexShader.vertexshader", "PhongFragmentShader.fragmentshader");
+		programID = LoadShaders( "shaders/PhongVertexShader.vertexshader", "shaders/PhongFragmentShader.fragmentshader");
 		MVPID = glGetUniformLocation(programID, "MVP");
 		MID = glGetUniformLocation(programID, "M");
 		VID = glGetUniformLocation(programID, "V");
@@ -64,14 +68,24 @@ public:
 		setupVAO();
 	}
 
-	SnowGenerator() : SnowGenerator(DEFAULT_SNOW_COUNT, DEFAULT_EXTENT, DEFAULT_TEMP, true) {};
+	/**
+	 * Default constructor for SnowGenerator.
+	 */
+	SnowGenerator() : SnowGenerator(DEFAULT_SNOW_COUNT, DEFAULT_EXTENT, DEFAULT_TEMP, MOESLUND_ALG) {};
 
+	/**
+	 * Setup VAOs.
+	 */
 	void setupVAO() {
 		glGenVertexArrays(1, &vertexArrayID);
 		glBindVertexArray(vertexArrayID);
 
 		// gen snow
-		data = snowBuilder.generateSnowOnceZouSplit();
+		if (whichAlg == EXPERIMENTAL_ALG) {
+			data = snowBuilder.generateSnowExperimental(numParticles, extent);
+		} else {
+			data = snowBuilder.generateSnowMoeslund(numParticles, extent);
+		}
 
 		// vertices
 		glGenBuffers(1, &vertBuffer);
@@ -119,6 +133,13 @@ public:
 		glBindVertexArray(0);
 	}
 
+	/**
+	 * Draw function.
+	 * @param lightPos - Position of the light source.
+	 * @param M - Model (transformation) matrix.
+	 * @param V - View matrix.
+	 * @param P - Projection matrix.
+	 */
 	void draw(glm::vec3 lightPos, glm::mat4 M, glm::mat4 V, glm::mat4 P) {
 		glm::mat4 MVP = P*V*M;
 		glBindVertexArray(vertexArrayID);

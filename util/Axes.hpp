@@ -4,6 +4,7 @@
  * @author Mars Semenova
  * @date March 30, 2026
  */
+
 class Axes {
 	glm::vec3 origin;
 	glm::vec3 extents;
@@ -16,6 +17,9 @@ class Axes {
 	GLuint vertBuffer;
 	GLuint colorBuffer;
 
+	/**
+	 * Setup VAOs.
+	 */
 	void setupVAO() {
 		glGenVertexArrays(1, &vertexArrayID);
 		glBindVertexArray(vertexArrayID);
@@ -71,17 +75,31 @@ class Axes {
 	}
 
 public:
+	/**
+	 * Constructor for Axes.
+	 * @param orig - Origin of the axes.
+	 * @param ex - A vec3 specifying the extent of the x-axis, y-axis, and z-axis, respectively.
+	 */
 	Axes(glm::vec3 orig, glm::vec3 ex) : origin(orig), extents(ex) {
 		// load shaders
-		programID = LoadShaders( "ColorVertexShader.vertexshader", "ColorFragmentShader.fragmentshader");
+		programID = LoadShaders( "shaders/ColorVertexShader.vertexshader", "shaders/ColorFragmentShader.fragmentshader");
 		MVPID = glGetUniformLocation(programID, "MVP");
 		glUseProgram(programID);
 
 		setupVAO();
 	}
 
+	/**
+	 * Default constructor for Axes.
+	 */
 	Axes() : Axes(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f)) {}
 
+	/**
+	 * Draw function.
+	 * @param M - Model (transformation) matrix.
+	 * @param V - View matrix.
+	 * @param P - Projection matrix.
+	 */
 	void draw(glm::mat4 M, glm::mat4 V, glm::mat4 P) {
 		glm::mat4 MVP = P*V*M;
 		glBindVertexArray(vertexArrayID);

@@ -4,6 +4,7 @@
  *
  * @author Dr. Alexander Brandt, Mars Semenova
  */
+
 #ifndef SHADER_HPP
 #define SHADER_HPP
 

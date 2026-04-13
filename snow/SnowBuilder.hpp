@@ -5,6 +5,7 @@
  * @author Mars Semenova
  * @date March 30, 2026
  */
+
 #ifndef SNOWBUILDER_HPP
 #define SNOWBUILDER_HPP
 
@@ -15,26 +16,13 @@
 class SnowBuilder {
 private:
 	// params
-	GLfloat diameter; // fluctuates by 50%, in cm
-	GLfloat density; // affects amt of layers + amt of polys + alpha
+	GLfloat diameter; // calced in cm based on temp, fluctuates by 50%, in cm
+	GLfloat density; // calced based on temp, affects amt of layers + amt of polys + alpha
 	bool isWet;
 
-	// fully random implementation functions
-	GLuint getNumLayersRand() {
-		return getRandInt(3, 6);
-	}
-
-	GLuint getNumPolysRand() {
-		return getRandInt(10, 40)*getNumLayersRand();
-	}
-
-	GLfloat getAlphaRand() {
-		return getRandFloat(0.0, 1.0);
-	}
-
-	// Moeslund implementation
+	// Moeslund implementation functions
 	GLuint getNumLayersMoeslund() {
-		return 6; // TODO: ???
+		return 6; // TODO: guessed
 	}
 
 	GLuint getNumPolysPerLayerMoeslund() {
@@ -42,36 +30,40 @@ private:
 	}
 
 	GLfloat getAlphaMoeslund() {
-		return 0.5; // const guessed from imgs in paper
+		return 0.5; // TODO: const guessed from imgs in paper
 	}
 
-	// Zou implementation
+	// improvement(?) functions
 
-	// improvement?
-
-	SnowBuilderData generateSnow(GLuint n, const GLfloat extent[3][2], GLuint alg) {
+	/**
+	 * Helper function which generates snow using the specified algorithm
+	 * @param numParticles - Number of particles to generate.
+	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
+	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
+	 * parameter has no effect and the snow particle is generated at the origin.
+	 * @param alg - Which algorithm to use for the snow particle generation. Either the Moeslund algorithm (1) or the
+	 * experimental algorithm (2). Constants for these are defined in SnowConstants.hpp (MOESLUND_ALG and EXPERIMENTAL_ALG, respectively).
+	 * @return A SnowBuilderData object with the generated data for the snowflake(s).
+	 */
+	SnowBuilderData generateSnow(GLuint numParticles, const GLfloat extent[3][2], GLuint alg) {
+		if (numParticles == 1) {
+			if (alg == EXPERIMENTAL_ALG) {
+				return generateSnowOnceExperimental();
+			}
+			return generateSnowOnceMoeslund();
+		}
 		SnowBuilderData data;
-		SnowBuilderData dataReturned[n];
+		SnowBuilderData dataReturned[numParticles];
 		GLuint numEntries = 0;
 		GLfloat xPos, yPos, zPos;
-		for (int x = 0; x < n; x++) {
+		for (int x = 0; x < numParticles; x++) {
 			xPos = getRandFloat(extent[0][0], extent[0][1]);
 			yPos = getRandFloat(extent[1][0], extent[1][1]);
 			zPos = getRandFloat(extent[2][0], extent[2][1]);
-			if (alg == RAND_ALG) {
-				dataReturned[x] = generateSnowOnceRand();
-			}
-			if (alg == MOESLUND_ALG) {
-				dataReturned[x] = generateSnowOnceMoeslund();
-			}
-			if (alg == ZOU_ALG_SPLIT) {
-				dataReturned[x] = generateSnowOnceZouSplit();
-			}
-			if (alg == ZOU_ALG_EXPAND) {
-				dataReturned[x] = generateSnowOnceZouExpand();
-			}
 			if (alg == EXPERIMENTAL_ALG) {
 				dataReturned[x] = generateSnowOnceExperimental();
+			} else {
+				dataReturned[x] = generateSnowOnceMoeslund();
 			}
 			numEntries += dataReturned[x].numPolys;
 
@@ -88,7 +80,7 @@ private:
 		data.normals = (GLfloat*) malloc(numEntries*9*sizeof(GLfloat));
 		data.colours = (GLfloat*) malloc(numEntries*12*sizeof(GLfloat));
 		GLuint offset = 0;
-		for (int x = 0; x < n; x++) {
+		for (int x = 0; x < numParticles; x++) {
 			for (int i = 0; i < dataReturned[x].numPolys*9; i++) {
 				data.verts[i + offset] = dataReturned[x].verts[i];
 				data.normals[i + offset] = dataReturned[x].normals[i];
@@ -97,7 +89,7 @@ private:
 			offset += dataReturned[x].numPolys*9;
 		}
 		offset = 0;
-		for (int x = 0; x < n; x++) {
+		for (int x = 0; x < numParticles; x++) {
 			for (int i = 0; i < dataReturned[x].numPolys*12; i++) {
 				data.colours[i + offset] = dataReturned[x].colours[i];
 			}
@@ -109,59 +101,36 @@ private:
 	}
 
 public:
-	SnowBuilder(GLfloat diameter, GLfloat density, bool isWet) : diameter(diameter), density(density), isWet(isWet) {
+	/**
+	 * Constructor for SnowBuilder.
+	 * @param temp - Temperature of the simulation.
+	 */
+	SnowBuilder(GLfloat temp) {
+		if (temp <= DIAMETER_THRESH) {
+			diameter = 0.015*pow(abs(temp), -0.35);
+		} else {
+			diameter = 0.04;
+		}
+		isWet = temp >= SNOW_STATE_THRESH;
+		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
+		diameter *= 100.0; // to cm
 	}
-	SnowBuilder() : SnowBuilder(0.015*pow(abs(DEFAULT_TEMP), -0.35), WET_HUMIDITY_CONST/(0.015*pow(abs(DEFAULT_TEMP), -0.35)), true) {};
 
+	/**
+	 * Default constructor for SnowBuilder.
+	 */
+	SnowBuilder() : SnowBuilder(DEFAULT_TEMP) {};
+
+	/**
+	 * Default function to generate a single snow particle. Uses the Moeslund algorithm.
+	 * @return A SnowBuilderData object with the generated data for the snowflake.
+	 */
 	SnowBuilderData generateSnowOnce() { return generateSnowOnceMoeslund(); }
 
-	SnowBuilderData generateSnowOnceRand() {
-		// set vars
-		GLuint numPolys;
-		GLfloat d, rho, theta, phi, newTheta, newPhi;
-		numPolys = getNumPolysRand();
-
-		// set up data obj
-		SnowBuilderData data;
-		data.numPolys = numPolys;
-		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
-		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
-		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
-
-		// gen verts n norms
-		for (int x = 0; x < numPolys*9; x+=9) {
-			// gen vars
-			d = getRandFloat(0.5, 1.5)*diameter;
-			rho = d/2.0f;
-			theta = deg2rad(getRandFloat(0.0, 360.0));
-			phi = deg2rad(getRandFloat(-90.0, 90.0));
-
-			data.verts[x] = rho*cos(theta)*sin(phi);
-			data.verts[x+1] = rho*sin(theta)*sin(phi);
-			data.verts[x+2] = rho*cos(phi);
-
-			for (int i = 3; i < 9; i+=3) {
-				newTheta = getRandFloat(theta-EPS, theta+EPS);
-				newPhi = getRandFloat(phi-EPS, phi+EPS);
-
-				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
-				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
-				data.verts[x+i+2] = rho*cos(newPhi);
-			}
-			calcNormal(&(data.verts[x]), &(data.normals[x]));
-		}
-
-		// set colours
-		for (int x = 0; x < numPolys*12; x+=4) {
-			for (int i = 0; i < 3; i++) {
-				data.colours[x + i] = 1.0;
-			}
-			data.colours[x + 3] = getAlphaRand();
-		}
-
-		return data;
-	}
-
+	/**
+	 * Generates a single snow particle using the Moeslund algorithm.
+	 * @return A SnowBuilderData object with the generated data for the snowflake.
+	 */
 	SnowBuilderData generateSnowOnceMoeslund() {
 		// set vars
 		GLuint numPolys;
@@ -274,92 +243,48 @@ public:
 		return data;
 	}
 
-	SnowBuilderData generateSnowOnceZouSplit() {
-		SnowBuilderData data;
-		SnowBuilderData moeslund = generateSnowOnceMoeslund();
-
-		// init linked lists (new + old)
-
-		// loop thru old list
-			// get 3 rand pts on edges
-
-			// add trigs x4 (TODO: what is the txt doing - i think used for rendering the snow as 2D textures (billboard technique or smth))
-
-		// smooth all
-
-			// TODO:? how do you "observe"???
-
-		return moeslund;
-	}
-
-	SnowBuilderData generateSnowOnceZouExpand() {
-		SnowBuilderData data;
-		SnowBuilderData moeslund = generateSnowOnceMoeslund();
-
-		// init linked lists (new + old)
-
-		// loop thru old list
-			// decrease A of og trig
-
-			// add og trig
-
-			// find new verts by expanding trig via symmetry
-
-			// add trig x3
-
-			// smooth 3 new
-			// TODO:? how do you "observe"???
-
-		// ----- alt alg
-		// loop thru old list
-			// decrease A of og trig
-
-			// add og trig
-
-			// find new verts by expanding trig via symmetry
-
-			// trans new trigs formed so that new verts are aligned w og verts
-		//----
-
-		// set alpha of trigs formed w expanding pt to 1 + the inner trig to 0 (TODO: ??? just dont add???)
-
-		return moeslund;
-	}
-
-	SnowBuilderData generateSnowOnceZou() {
-		return generateSnowOnceZouExpand();
-	}
-
-	SnowBuilderData generateSnowOnceExperimental() { // TODO
+	/**
+	 * Generates a single snow particle using the experimental algorithm.
+	 * @return A SnowBuilderData object with the generated data for the snowflake.
+	 */
+	SnowBuilderData generateSnowOnceExperimental() {
 
 	}
 
-	SnowBuilderData generateSnow(GLuint n, const GLfloat extent[3][2]) {
-		return generateSnowMoeslund(n, extent);
+	/**
+	 * Generates snow using the default algorithm (Moeslund).
+	 * @param numParticles - Number of particles to generate.
+	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
+	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
+	 * parameter has no effect and the snow particle is generated at the origin.
+	 * @return A SnowBuilderData object with the generated data for the snowflake(s).
+	 */
+	SnowBuilderData generateSnow(GLuint numParticles, const GLfloat extent[3][2]) {
+		return generateSnowMoeslund(numParticles, extent);
 	}
 
-	SnowBuilderData generateSnowRand(GLuint n, const GLfloat extent[3][2]) {
-		return generateSnow(n, extent, RAND_ALG);
+	/**
+	 * Generates snow using the Moeslund algorithm.
+	 * @param numParticles - Number of particles to generate.
+	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
+	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
+	 * parameter has no effect and the snow particle is generated at the origin.
+	 * @return A SnowBuilderData object with the generated data for the snowflake(s).
+	 */
+	SnowBuilderData generateSnowMoeslund(GLuint numParticles, const GLfloat extent[3][2]) {
+		return generateSnow(numParticles, extent, MOESLUND_ALG);
 	}
 
-	SnowBuilderData generateSnowMoeslund(GLuint n, const GLfloat extent[3][2]) {
-		return generateSnow(n, extent, MOESLUND_ALG);
-	}
-
-	SnowBuilderData generateSnowZouSplit(GLuint n, const GLfloat extent[3][2]) {
-		return generateSnow(n, extent, ZOU_ALG_SPLIT);
-	}
-
-	SnowBuilderData generateSnowZouExpand(GLuint n, const GLfloat extent[3][2]) {
-		return generateSnow(n, extent, ZOU_ALG_EXPAND);
-	}
-
-	SnowBuilderData generateSnowZou(GLuint n, const GLfloat extent[3][2]) { // def = expand
-		return generateSnow(n, extent, ZOU_ALG_EXPAND);
-	}
-
-	SnowBuilderData generateSnowExperimental(GLuint n, const GLfloat extent[3][2]) {
-		return generateSnow(n, extent, EXPERIMENTAL_ALG);
+	/**
+	 * Generates snow using the experimental algorithm.
+	 * @param numParticles - Number of particles to generate.
+	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
+	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
+	 * parameter has no effect and the snow particle is generated at the origin.
+	 * @return A SnowBuilderData object with the generated data for the snowflake(s).
+	 */
+	SnowBuilderData generateSnowExperimental(GLuint numParticles, const GLfloat extent[3][2]) {
+		return generateSnow(numParticles, extent, EXPERIMENTAL_ALG);
 	}
 };
 
