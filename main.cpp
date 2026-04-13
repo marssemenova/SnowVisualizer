@@ -8,7 +8,7 @@
 
 #include "util/Constants.hpp"
 
-#include "util/GlobeCamera.hpp"
+#include "util/CameraControls.hpp"
 #include "snow/SnowGenerator.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -43,7 +43,7 @@ int main() {
         return -1;
     }
 
-    // temp input vars, TODO: del n get thru CLI
+    // temp input vars (TODO: get from CLI args)
     GLuint numParticles = 1, whichAlg = MOESLUND_ALG;
     GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0;
     GLfloat temp = -5.0;

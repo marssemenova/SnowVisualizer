@@ -31,8 +31,9 @@ generated `/include/glfw/` folder and the shaders folder (`/cmake-build-debug/sh
 same directory as the executable. 
 
 ### 4. Run the executable
-If arguments are provided, snowflake(s) will be generated as specified. Otherwise, the instance
-used in experimentation is rendered. 
+Running the execulable will generate snow based on preset parameters. Due to time constraints the input of arguments through
+the CLI was not implemented so you will have to change parameters in the runner (`main.cpp`) before
+compiling.
 
 
 ## Implementation
@@ -47,6 +48,9 @@ and `/cmake-build-debug/shaders/PhongFragmentShader.fragmentshader`. The runner 
 ## Documents
 
 Any documents related to this project are available in `/docs/`.
+
+## Future Work
+
 
 ## Citations
 [1]	T. B. Moeslund et al. “Modeling Falling and Accumulating Snow”. In: Second

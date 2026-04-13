@@ -1,5 +1,5 @@
 /**
- * GlobeCamera.hpp - Contains helper methods to control the camera. Modified version of a standard
+ * CameraControls.hpp - Contains helper methods to control the camera. Modified version of a standard
  * template by Dr. Brandt.
  *
  * @author Dr. Alexander Brandt, Mars Semenova
@@ -8,7 +8,7 @@
 #ifndef _CAM_CONTROLS_H_
 #define _CAM_CONTROLS_H_
 
-glm::vec3 cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
+void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     glm::vec3 targ = {0.0f, 0.0f, 0.0f};
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     static float radiusFromOrigin = glm::length(eye);
@@ -89,17 +89,74 @@ glm::vec3 cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
 
     // Move forward
     if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS) {
-        radiusFromOrigin -= deltaTime * speed;
+        //radiusFromOrigin -= deltaTime * speed;
     }
     // Move backward
     if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS) {
-        radiusFromOrigin += deltaTime * speed;
+        //radiusFromOrigin += deltaTime * speed;
+    }
+
+    float dxpos = 0.0f, dypos = 0.0f;
+    float speedPos = 0.5f;
+    // Move forward
+    if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS) {
+        dypos += deltaTime * speedPos;
+    }
+    // Move backward
+    if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS) {
+        dypos -= deltaTime * speedPos;
+    }
+    // Rotate counterclockwise
+    if (glfwGetKey( window, GLFW_KEY_LEFT ) == GLFW_PRESS) {
+        dxpos -= deltaTime * speedPos;
+    }
+    // rotate clockwise
+    if (glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS) {
+        dxpos += deltaTime * speedPos;
     }
 
     position = -1.0f * direction * radiusFromOrigin;
+    position.x += dxpos;
+    position.y += dypos;
     V = glm::lookAt(position, targ, up);
+}
 
-    return position;
+void cameraControlsFirstPerson(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
+    static GLfloat theta = glm::radians(-90.0f);
+    static glm::vec3 position = eye;
+    double currentTime = glfwGetTime();
+    static double lastTime = glfwGetTime();
+    float deltaTime = (currentTime - lastTime);
+    lastTime = currentTime;
+
+    float dx = 0.0f, dy = 0.0f;
+    float speed = 0.5f;
+    // Move forward
+    if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS) {
+        dy += deltaTime * speed;
+    }
+    // Move backward
+    if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS) {
+        dy -= deltaTime * speed;
+    }
+    // Rotate counterclockwise
+    if (glfwGetKey( window, GLFW_KEY_LEFT ) == GLFW_PRESS) {
+        dx -= deltaTime * speed;
+    }
+    // rotate clockwise
+    if (glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS) {
+        dx += deltaTime * speed;
+    }
+
+    theta += dx;
+    glm::vec3 dir(cos(theta), 0, sin(theta));
+
+    if (dy != 0.0f) {
+        position += dy*dir;
+    }
+
+    glm::vec3 up = {0.0f, 1.0f, 0.0f};
+    V = glm::lookAt(position, position + dir, up);
 }
 
 #endif
