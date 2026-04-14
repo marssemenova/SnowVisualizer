@@ -1,0 +1,27 @@
+#version 400
+
+in vec3 Normal_cameraspace;
+in vec3 EyeDirection_cameraspace;
+in vec3 LightDirection_cameraspace;
+
+out vec4 color;
+
+uniform vec4 modelcolor;
+
+void main(){
+    // material properties
+    vec4 diffuse = modelcolor;
+    vec4 ambient = vec4(0.2, 0.2, 0.2, modelcolor.a);
+    vec4 specular = vec4(1.0, 1.0, 1.0, modelcolor.a);
+    float shininess = 64; // alpha
+
+    vec3 n = normalize(Normal_cameraspace);
+    vec3 l = normalize(LightDirection_cameraspace);
+    float cosTheta = clamp(dot(n, l), 0 , 1); // ensure dot product is between 0 and 1
+
+    vec3 E = normalize(EyeDirection_cameraspace);
+    vec3 R = reflect(-l, n);
+    float cosAlpha = clamp(dot(E, R), 0, 1);
+
+    color = ambient + diffuse*cosTheta + specular*pow(cosAlpha, shininess);
+}
