@@ -14,7 +14,6 @@ struct SnowGeneratorData {
     GLfloat* verts;
     GLfloat* normals;
     GLfloat* colours;
-    GLfloat alpha; // Phong shininess coeff
 };
 
 #endif

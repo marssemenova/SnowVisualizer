@@ -56,21 +56,19 @@ and `/cmake-build-debug/shaders/PhongFragmentShader.fragmentshader`. The runner 
 The experiments discussed in the report are implemented in `/snow/SnowGeneratorExperimentation.hpp`. The parameter 
 `whichExperiment` which is passed to the constructor in this class has the following possible values to indicate which 
 experiment to run, with the letters indicating the label given to the experiment in the report:
-- 
+
 - `DEG_OF_ALLOWANCE_EXP` (a)
-- `DEG_OF_ALLOWANCE_VARIANCE_EXP` (a)
 - `OPACITY_EXP` (b)
+- `OPACITY_VARIANCE_EXP` (b)
 - `NUM_LAYERS_EXP` (c)
-- `LAYER_H_VARIANCE_EXP` (d)
-- `SHININESS_EXP` (e)
 
 ## Documents
 
-Any documents related to this project are available in `/docs/`.
+Any documents related to this project are available in `/docs/`. 
 
-## Future Work
+### Videos
 
-TODO
+Demos of the application can be found in `/docs/videos/`.
 
 ## Citations
 [1]	T. B. Moeslund et al. “Modeling Falling and Accumulating Snow”. In: Second
@@ -93,5 +91,7 @@ and Service. Association for Computing Machinery, 2010, pp. 199–202. ISBN:
 - Improve shader
 - Prevent generated triangles from intersecting
 - Optimization + parallelization (setup for GPU)
+- Vary # of polys per layer
+- Vary layerH but ensure that the gaps or lack thereof are not unnatural
 
 

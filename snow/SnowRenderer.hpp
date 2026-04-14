@@ -146,7 +146,7 @@ public:
 		glUniformMatrix4fv(MID, 1, GL_FALSE, &M[0][0]);
 		glUniformMatrix4fv(VID, 1, GL_FALSE, &V[0][0]);
 		glUniform3f(LightPosID, lightPos.x, lightPos.y, lightPos.z);
-		glUniform1f(alphaID, data.alpha);
+		glUniform1f(alphaID, SHININESS_COEFF);
 
 		glPointSize(3.0f);
 		glDrawArrays(GL_TRIANGLES, 0, data.numPolys*3);

@@ -19,22 +19,28 @@ private:
 	GLfloat diameter; // calced in cm based on temp, fluctuates by 50%, in cm
 	GLfloat density; // calced based on temp, affects amt of layers + amt of polys + alpha
 	bool isWet;
-	GLfloat alpha;
 
 	// Moeslund implementation functions
 	GLuint getNumLayersMoeslund() {
-		return 6; // TODO: guessed
+		return 6; // guessed
 	}
 
 	GLuint getNumPolysPerLayerMoeslund() {
-		return isWet ? 40 : 10; // TODO: for Zou says only needs to be 1/4 ot the other
+		return isWet ? 40 : 10; // for Zou says only needs to be 1/4 ot the other
 	}
 
-	GLfloat getAlphaMoeslund() {
-		return 0.5; // TODO: const guessed from imgs in paper
+	GLfloat getOpacityMoeslund() {
+		return 0.5; // const guessed from imgs in paper
 	}
 
 	// improvement(?) functions
+	GLuint getNumPolysPerLayerExperimental() {
+		return isWet ? 40 : 10; // TODO: for Zou says only needs to be 1/4 ot the other, need to experiment
+	}
+
+	GLfloat getOpacityExperimental(GLfloat opacityCoeff) {
+		return opacityCoeff * density;
+	}
 
 	/**
 	 * Helper function which generates snow using the specified algorithm
@@ -80,14 +86,12 @@ private:
 		data.verts = (GLfloat*) malloc(numEntries*9*sizeof(GLfloat));
 		data.normals = (GLfloat*) malloc(numEntries*9*sizeof(GLfloat));
 		data.colours = (GLfloat*) malloc(numEntries*12*sizeof(GLfloat));
-		data.alpha = dataReturned[0].alpha;
 		GLuint offset = 0;
 		for (int x = 0; x < numParticles; x++) {
 			for (int i = 0; i < dataReturned[x].numPolys*9; i++) {
 				data.verts[i + offset] = dataReturned[x].verts[i];
 				data.normals[i + offset] = dataReturned[x].normals[i];
 			}
-
 			offset += dataReturned[x].numPolys*9;
 		}
 		offset = 0;
@@ -95,7 +99,6 @@ private:
 			for (int i = 0; i < dataReturned[x].numPolys*12; i++) {
 				data.colours[i + offset] = dataReturned[x].colours[i];
 			}
-
 			offset += dataReturned[x].numPolys*12;
 		}
 
@@ -114,7 +117,6 @@ public:
 			diameter = 0.04;
 		}
 		isWet = temp >= SNOW_STATE_THRESH;
-		alpha = isWet ? 3.0 : 2.0; // TODO: experiment to get good values
 		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
 		diameter *= 100.0; // to cm
 	}
@@ -149,7 +151,6 @@ public:
 		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
-		data.alpha = alpha;
 
 		// gen first layer verts n norms
 		currRho = layerH;
@@ -237,22 +238,151 @@ public:
 		}
 
 		// set colours
-		for (int x = 0; x < numPolys*12; x+=4) {
-			for (int i = 0; i < 3; i++) {
-				data.colours[x + i] = 1.0;
+		for (int x = 0; x < numPolys*12; x+=12) {
+			for (int y = 0; y < 12;	y+= 4) {
+				for (int i = 0; i < 3; i++) {
+					data.colours[x + y + i] = 1.0;
+				}
+				data.colours[x + y + 3] = getOpacityMoeslund();
 			}
-			data.colours[x + 3] = getAlphaMoeslund();
 		}
 
 		return data;
 	}
 
 	/**
-	 * Generates a single snow particle using the experimental algorithm.
+	 * Generates a single snow particle using the experimental algorithm with configurable params.
+	 * Used in experimentation.
+	 * @param epsTheta - Allowed angular change in theta.
+	 * @param epsPhi - Allowed angular change in phi.
+	 * @param opacityCoeff - Opacity coefficient used with the density to determine opacity of triangles.
+	 * @param epsOpacity - Allowed change (percentage) in the opacity of
+	 * @param numLayersInp - Number of layers of the snow particle.
+	 * @return A SnowGeneratorData object with the generated data for the snowflake.
+	 */
+	SnowGeneratorData generateSnowOnceExperimental(GLfloat epsTheta, GLfloat epsPhi, GLfloat opacityCoeff, GLfloat epsOpacity, GLuint numLayersInp) {
+		// set vars
+		GLuint numPolys;
+		GLfloat d, rho, currRho, theta, phi, newTheta, newPhi;
+		GLuint numPolysPerLayer = getNumPolysPerLayerExperimental(), numLayers = numLayersInp;
+		numPolys = numPolysPerLayer * numLayers;
+		d = getRandFloat(0.5, 1.5)*diameter;
+		GLfloat layerH = (d/2.0f)/numLayers;
+
+		// set up data obj
+		SnowGeneratorData data;
+		data.numPolys = numPolys;
+		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
+		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
+		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
+
+		// gen first layer verts n norms
+		currRho = layerH;
+		for (int x = 0; x < numPolysPerLayer*9; x+=9) {
+			// gen vars
+			rho = getRandFloat(currRho-layerH, currRho+layerH);
+			if (rho == 0.0f) {
+				rho = 0.000001f;
+			}
+			theta = deg2rad(getRandFloat(0.0, 360.0));
+			phi = deg2rad(getRandFloat(0.0, 180.0));
+
+			data.verts[x] = rho*cos(theta)*sin(phi);
+			data.verts[x+1] = rho*sin(theta)*sin(phi);
+			data.verts[x+2] = rho*cos(phi);
+
+			for (int i = 3; i < 9; i+=3) {
+				rho = getRandFloat(currRho-layerH, currRho+layerH);
+				if (rho == 0.0f) {
+					rho = 0.000001f;
+				}
+				newTheta = getRandFloat(theta-epsTheta, theta+epsTheta);
+				newPhi = getRandFloat(phi-epsPhi, phi+epsPhi);
+
+				data.verts[x+i] = rho*cos(newTheta)*sin(newPhi);
+				data.verts[x+i+1] = rho*sin(newTheta)*sin(newPhi);
+				data.verts[x+i+2] = rho*cos(newPhi);
+			}
+			calcNormal(&(data.verts[x]), &(data.normals[x]));
+		}
+
+		// gen verts n norms
+		GLuint refTrig, refPt, refPtInd;
+		GLfloat newRho, refTheta, refPhi, refX, refY, refZ;
+		GLfloat pt[3];
+		for (int x = numPolysPerLayer*9; x < numPolys*9; x+=numPolysPerLayer*9) {
+			// updates
+			currRho += layerH;
+
+			// gen vars
+			for (int y = 0; y < numPolysPerLayer*9; y+=9) {
+				refTrig = getRandInt(0, numPolysPerLayer-1);
+				refPtInd = getRandInt(0, 3);
+				refPt = x - numPolysPerLayer*9 + refTrig*9 + refPtInd*3;
+
+				findPointInTriangle(&(data.verts[x - numPolysPerLayer*9 + refTrig*9]), pt);
+				newRho = sqrt(pow(pt[0], 2) + pow(pt[1], 2) + pow(pt[2], 2));
+				refX = data.verts[refPt], refY = data.verts[refPt + 1], refZ = data.verts[refPt+ 2];
+				if (refX == 0) {
+					refTheta = refY > 0 ? _PI/2.0f : -_PI/2.0f;
+				} else {
+					refTheta = atan(refY/refX);
+					if (refX < 0) {
+						if (refY >= 0) {
+							refTheta += _PI;
+						} else {
+							refTheta -= _PI;
+						}
+					}
+				}
+				if (refZ == 0 && sqrt(pow(refX, 2) + pow(refY, 2)) != 0) {
+					refPhi = _PI/2.0f;
+				} else {
+					refPhi = atan(sqrt(pow(refX, 2) + pow(refY, 2))/refZ);
+					if (refZ < 0) {
+						refPhi += _PI;
+					}
+				}
+
+				data.verts[x+y] = newRho*cos(refTheta)*sin(refPhi);
+				data.verts[x+y+1] = newRho*sin(refTheta)*sin(refPhi);
+				data.verts[x+y+2] = newRho*cos(refPhi);
+
+				for (int i = 3; i < 9; i+=3) {
+					rho = getRandFloat(currRho-layerH, currRho+layerH);
+					newTheta = getRandFloat(refTheta-epsTheta, refTheta+epsTheta);
+					newPhi = getRandFloat(refPhi-epsPhi, refPhi+epsPhi);
+
+					data.verts[x+y+i] = rho*cos(newTheta)*sin(newPhi);
+					data.verts[x+y+i+1] = rho*sin(newTheta)*sin(newPhi);
+					data.verts[x+y+i+2] = rho*cos(newPhi);
+				}
+				calcNormal(&(data.verts[x+y]), &(data.normals[x+y]));
+			}
+		}
+
+		// set colours
+		GLfloat opacity;
+		for (int x = 0; x < numPolys*12; x+=12) {
+			opacity = getOpacityExperimental(opacityCoeff);
+			opacity = getRandFloat(opacity - opacity*epsOpacity, opacity + opacity*epsOpacity);
+			for (int y = 0; y < 12;	y+= 4) {
+				for (int i = 0; i < 3; i++) {
+					data.colours[x + y + i] = 1.0;
+				}
+				data.colours[x + y + 3] = opacity;
+			}
+		}
+
+		return data;
+	}
+
+	/**
+	 * Generates a single snow particle using the experimental algorithm with experimentally determined params.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake.
 	 */
 	SnowGeneratorData generateSnowOnceExperimental() {
-
+		return generateSnowOnceExperimental(isWet ? EPS_THETA_WET : EPS_THETA_DRY, isWet ? EPS_PHI_WET : EPS_PHI_DRY, OPACITY_COEFF, EPS_OPACITY, isWet ? NUM_LAYERS_WET : NUM_LAYERS_DRY);
 	}
 
 	/**

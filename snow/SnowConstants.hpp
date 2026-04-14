@@ -41,11 +41,26 @@ const GLfloat DRY_HUMIDITY_CONST = 0.17; // km/m^2
 const GLfloat WET_HUMIDITY_CONST = 0.724; // km/m^2
 const GLfloat GRAV = 9.81; // used w density
 const GLfloat EPS = deg2rad(80.0); // val from Moeslund
+const GLfloat SHININESS_COEFF = 1.0;
 
 // alg types enum
 const GLuint MOESLUND_ALG = 1;
 const GLuint EXPERIMENTAL_ALG = 2;
 
 // experimentally determined values for the experimental alg
+const GLfloat EPS_THETA_MOESLUND = deg2rad(80.0);
+const GLfloat EPS_PHI_MOESLUND  = deg2rad(80.0);
+const GLfloat OPACITY_COEFF_MOESLUND = 1.0/50; // approx
+const GLfloat EPS_OPACITY_MOESLUND  = 0.0; // percentage
+const GLuint NUM_LAYERS_WET_MOESLUND  = 6;
+const GLuint NUM_LAYERS_DRY_MOESLUND  = 6;
+const GLfloat EPS_THETA_WET = deg2rad(60.0);
+const GLfloat EPS_PHI_WET = deg2rad(30.0);
+const GLfloat EPS_THETA_DRY = deg2rad(70.0);
+const GLfloat EPS_PHI_DRY = deg2rad(35.0);
+const GLfloat OPACITY_COEFF = 1.0/50;
+const GLfloat EPS_OPACITY = 0.25; // percentage
+const GLuint NUM_LAYERS_WET = 5;
+const GLuint NUM_LAYERS_DRY = 6;
 
 #endif

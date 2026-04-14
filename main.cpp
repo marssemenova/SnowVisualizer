@@ -44,11 +44,11 @@ int main() {
     }
 
     // temp input vars (TODO: get from CLI args)
-    GLuint numParticles = 1;
-    GLuint whichAlg = MOESLUND_ALG, whichCam = FIRST_PERSON_CAM, whichExp = DEG_OF_ALLOWANCE_EXP;
-    GLfloat minX = 0.0, maxX = 5.0, minY = 0.0, maxY = 5.0, minZ = 0.0, maxZ = 5.0;
+    GLuint numParticles = 100;
+    GLuint whichAlg = EXPERIMENTAL_ALG, whichCam = FIRST_PERSON_CAM, whichExp = DEG_OF_ALLOWANCE_EXP;
+    GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -200.0, maxZ = -100.0;
     GLfloat temp = -5.0;
-    bool test = true;
+    bool exp = false;
 
     // def vars
     float screenW = SCR_WIDTH;
@@ -67,7 +67,7 @@ int main() {
     if (whichCam == GLOBE_CAM) {
         eye= {0.0f, 3.0f, 5.0f};
     } else {
-        eye = {0.0f, 0.0f, 3.0f};
+        eye = {0.0f, 0.0f, 10.0f};
     }
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     glm::vec3 center = {0.0f, 0.0f, 0.0f};
@@ -79,12 +79,12 @@ int main() {
         cameraControlsFirstPerson(V, eye, window);
     }
     glm::mat4 MSnow(1.0f);
-    glm::vec3 lightpos(5.0f, 5.0f, 5.0f);
+    glm::vec3 lightpos(0.0f, 10.0f, -10.0f);
 
     // setup snow gen obj
     SnowRenderer snowGen;
     SnowGeneratorExperimentation snowGenExp;
-    if (!test) {
+    if (!exp) {
         GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
         snowGen = *(new SnowRenderer(numParticles, extent, temp, whichAlg));
     } else {
@@ -99,7 +99,7 @@ int main() {
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
-        if (!test) {
+        if (!exp) {
             snowGen.draw(lightpos, MSnow, V, Projection);
         } else {
             snowGenExp.draw(lightpos, MSnow, V, Projection);

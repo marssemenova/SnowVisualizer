@@ -113,7 +113,7 @@ void cameraControlsFirstPerson(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) 
     lastTime = currentTime;
 
     float dx = 0.0f, dy = 0.0f, dz = 0.0f;
-    float speed = 1.0f;
+    float speed = 5.0f;
     // Move forward
     if (glfwGetKey( window, GLFW_KEY_LEFT_SHIFT ) == GLFW_PRESS) {
         dy += deltaTime * speed;
