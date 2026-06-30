@@ -3,7 +3,6 @@
  * a single instance of snow.
  *
  * @author Mars Semenova
- * @date March 30, 2026
  */
 
 #ifndef SNOWGENERATOR_HPP
@@ -127,10 +126,10 @@ public:
 	SnowGenerator() : SnowGenerator(DEFAULT_TEMP) {};
 
 	/**
-	 * Default function to generate a single snow particle. Uses the Moeslund algorithm.
+	 * Default function to generate a single snow particle. Uses the Experimental algorithm.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake.
 	 */
-	SnowGeneratorData generateSnowOnce() { return generateSnowOnceMoeslund(); }
+	SnowGeneratorData generateSnowOnce() { return generateSnowOnceExperimental(); }
 
 	/**
 	 * Generates a single snow particle using the Moeslund algorithm.
@@ -386,7 +385,7 @@ public:
 	}
 
 	/**
-	 * Generates snow using the default algorithm (Moeslund).
+	 * Generates snow using the default algorithm (Experimental).
 	 * @param numParticles - Number of particles to generate.
 	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
 	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
@@ -394,7 +393,7 @@ public:
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
 	SnowGeneratorData generateSnow(GLuint numParticles, const GLfloat extent[3][2]) {
-		return generateSnowMoeslund(numParticles, extent);
+		return generateSnowExperimental(numParticles, extent);
 	}
 
 	/**

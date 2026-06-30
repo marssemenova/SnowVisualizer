@@ -2,7 +2,6 @@
  * Axes.hpp - Renders axes. Used for debugging.
  *
  * @author Mars Semenova
- * @date March 30, 2026
  */
 
 class Axes {

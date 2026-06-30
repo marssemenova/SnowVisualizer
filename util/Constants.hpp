@@ -2,7 +2,6 @@
  * Constants.hpp - Contains includes, definitions, and constants for the application.
  *
  * @author Mars Semenova
- * @date March 30, 2026
  */
 
 #ifndef CONSTANTS_HPP

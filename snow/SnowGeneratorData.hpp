@@ -1,9 +1,8 @@
 /**
- * SnowGeneratorData.hpp - Contains the data structure used to return
+* SnowGeneratorData.hpp - Contains the data structure used to return
  * generated snow data.
  *
  * @author Mars Semenova
- * @date April 5, 2026
  */
 
 #ifndef SNOWGENERATORDATA_HPP

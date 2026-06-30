@@ -2,14 +2,13 @@
  * SnowGeneratorExperimentation.hpp - Contains the class which renders the snow generation experiments.
  *
  * @author Mars Semenova
- * @date April 13, 2026
  */
 
 #ifndef SNOWGENERATOREXPERIMENTATION_HPP
 #define SNOWGENERATOREXPERIMENTATION_HPP
 
-#include "SnowConstants.hpp"
-#include "SnowGenerator.hpp"
+#include "../SnowConstants.hpp"
+#include "../SnowGenerator.hpp"
 
 // experiments enum
 const GLuint DEG_OF_ALLOWANCE_EXP = 1;

@@ -1,15 +1,14 @@
 /**
- * Main.cpp - Runner file for the application. Structure largely follows a standard
+ * main.cpp - Runner file for the application. Structure largely follows a standard
  * template by Dr. Brandt.
  *
  * @author Mars Semenova, Dr. Alexander Brandt
- * @date March 30, 2026
  */
 
 #include "util/Constants.hpp"
 
 #include "snow/SnowRenderer.hpp"
-#include "snow/SnowGeneratorExperimentation.hpp"
+#include "snow/experimentation/SnowGeneratorExperimentation.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -45,7 +44,7 @@ int main() {
 
     // temp input vars (TODO: get from CLI args)
     GLuint numParticles = 100;
-    GLuint whichAlg = EXPERIMENTAL_ALG, whichCam = FIRST_PERSON_CAM, whichExp = DEG_OF_ALLOWANCE_EXP;
+    GLuint whichCam = FIRST_PERSON_CAM;
     GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -200.0, maxZ = -100.0;
     GLfloat temp = -5.0;
     bool exp = false;
@@ -84,12 +83,8 @@ int main() {
     // setup snow gen obj
     SnowRenderer snowGen;
     SnowGeneratorExperimentation snowGenExp;
-    if (!exp) {
-        GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
-        snowGen = *(new SnowRenderer(numParticles, extent, temp, whichAlg));
-    } else {
-        snowGenExp = *(new SnowGeneratorExperimentation(whichExp));
-    }
+    GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
+    snowGen = *(new SnowRenderer(numParticles, extent, temp));
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -99,11 +94,7 @@ int main() {
     do {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
-        if (!exp) {
-            snowGen.draw(lightpos, MSnow, V, Projection);
-        } else {
-            snowGenExp.draw(lightpos, MSnow, V, Projection);
-        }
+        snowGen.draw(lightpos, MSnow, V, Projection);
 
         if (whichCam == GLOBE_CAM) {
             cameraControlsGlobe(V, eye, window);

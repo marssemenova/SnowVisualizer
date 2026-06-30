@@ -1,9 +1,8 @@
 /**
- * SnowConstants.hpp - Contains includes, definitions, and constants for the
+* SnowConstants.hpp - Contains includes, definitions, and constants for the
  * snow generation.
  *
  * @author Mars Semenova
- * @date March 30, 2026
  */
 
 #ifndef SNOWCONSTANTS_HPP

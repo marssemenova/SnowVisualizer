@@ -1,0 +1,154 @@
+/**
+ * main_experimentation.cpp - Runner file for the original application with experimentation. Structure
+ * largely follows a standard template by Dr. Brandt.
+ *
+ * @author Mars Semenova, Dr. Alexander Brandt
+ */
+
+#include "util/Constants.hpp"
+
+#include "snow/SnowRenderer.hpp"
+#include "snow/experimentation/SnowGeneratorExperimentation.hpp"
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void processInput(GLFWwindow *window);
+
+int main() {
+    srand(time(0));
+    // glfw: initialize and configure
+    glfwInit();
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
+#endif
+
+    // glfw window creation
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Snow Visualizer", NULL, NULL);
+    if (window == NULL) {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+    // glad: load all OpenGL function pointers
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
+
+    // temp input vars (TODO: get from CLI args)
+    GLuint numParticles = 100;
+    GLuint whichAlg = EXPERIMENTAL_ALG, whichCam = FIRST_PERSON_CAM, whichExp = DEG_OF_ALLOWANCE_EXP;
+    GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -200.0, maxZ = -100.0;
+    GLfloat temp = -5.0;
+    bool exp = false;
+
+    // def vars
+    float screenW = SCR_WIDTH;
+    float screenH = SCR_HEIGHT;
+    GLenum err;
+
+    // ensure we can capture the escape key being pressed below
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+
+    // dark blue background
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+    // set up rendering vars
+    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), screenW/screenH, 0.001f, 1000.0f);
+    glm::vec3 eye;
+    if (whichCam == GLOBE_CAM) {
+        eye= {0.0f, 3.0f, 5.0f};
+    } else {
+        eye = {0.0f, 0.0f, 10.0f};
+    }
+    glm::vec3 up = {0.0f, 1.0f, 0.0f};
+    glm::vec3 center = {0.0f, 0.0f, 0.0f};
+
+    glm::mat4 V = glm::lookAt(eye, center, up);
+    if (whichCam == GLOBE_CAM) {
+        cameraControlsGlobe(V, eye, window);
+    } else {
+        cameraControlsFirstPerson(V, eye, window);
+    }
+    glm::mat4 MSnow(1.0f);
+    glm::vec3 lightpos(0.0f, 10.0f, -10.0f);
+
+    // setup snow gen obj
+    SnowRenderer snowGen;
+    SnowGeneratorExperimentation snowGenExp;
+    if (!exp) {
+        GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
+        snowGen = *(new SnowRenderer(numParticles, extent, temp, whichAlg));
+    } else {
+        snowGenExp = *(new SnowGeneratorExperimentation(whichExp));
+    }
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    do {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
+
+        if (!exp) {
+            snowGen.draw(lightpos, MSnow, V, Projection);
+        } else {
+            snowGenExp.draw(lightpos, MSnow, V, Projection);
+        }
+
+        if (whichCam == GLOBE_CAM) {
+            cameraControlsGlobe(V, eye, window);
+        } else {
+            cameraControlsFirstPerson(V, eye, window);
+        }
+
+        // process/log the error
+        while ((err = glGetError()) != GL_NO_ERROR) {
+            fprintf(stderr, "GLEnum error after draw: %d\n", err);
+        }
+
+        // swap buffers
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // check if the ESC key was pressed or the window was closed
+    while (glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);
+
+    // render loop
+    while (!glfwWindowShouldClose(window)) {
+        // input
+        processInput(window);
+
+        // render
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // glfw: terminate, clearing all previously allocated GLFW resources.
+    glfwTerminate();
+    return 0;
+}
+
+// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+void processInput(GLFWwindow *window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
+
+// glfw: whenever the window size changed (by OS or user resize) this callback function executes
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    glViewport(0, 0, width, height); // make sure the viewport matches the new window dimensions (note that width and height will be significantly larger than specified on retina displays)
+}

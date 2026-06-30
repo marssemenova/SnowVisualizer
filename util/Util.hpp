@@ -2,7 +2,6 @@
  * Util.hpp - Contains util functions.
  *
  * @author Mars Semenova
- * @date April 5, 2026
  */
 
 #ifndef UTIL_HPP

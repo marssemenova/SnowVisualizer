@@ -2,7 +2,6 @@
  * SnowRenderer.hpp - Contains the class which renders the snow generation.
  *
  * @author Mars Semenova
- * @date March 30, 2026
  */
 
 #ifndef SNOWRENDERER_HPP
@@ -66,9 +65,19 @@ public:
 	}
 
 	/**
+	 * Constructor for SnowRenderer with the default algorithm (EXPERIMENTAL_ALG).
+	 * @param numParticles - Number of snow particles to generate.
+	 * @param extentInp - Extent of volume in which to generate the particles, where extentInp[0] is a pair for the x extent,
+	 * extentInp[1] is a pair for the y extent, and extentInp[2] is a pair for the z extent. If numParticles = 1 this
+	 * parameter has no effect and the snow particle is generated at the origin.
+	 * @param temp - Temperature of the simulation.
+	 */
+	SnowRenderer(GLuint numParticles, const GLfloat extentInp[3][2], GLfloat temp) : SnowRenderer(numParticles, extentInp, temp, EXPERIMENTAL_ALG) {};
+
+	/**
 	 * Default constructor for SnowRenderer.
 	 */
-	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENT, DEFAULT_TEMP, MOESLUND_ALG) {};
+	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENT, DEFAULT_TEMP, EXPERIMENTAL_ALG) {};
 
 	/**
 	 * Setup VAOs.
