@@ -9,6 +9,7 @@
 
 #include "SnowConstants.hpp"
 #include "SnowGenerator.hpp"
+#include "gpu.h"
 
 class SnowRenderer {
 private:
@@ -96,7 +97,7 @@ public:
 		// vertices
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.verts, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(
 			0,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -139,6 +140,22 @@ public:
 		glBindVertexArray(0);
 	}
 
+	void updateSnow() {
+		updateSnowOnGPU(data.verts, data.numPolys*3);
+		glBindVertexArray(vertexArrayID);
+		glGenBuffers(1, &vertBuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(
+			0,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			3,                                // size
+			GL_FLOAT,                         // type
+			GL_FALSE,                         // normalized?
+			0,                                // stride
+			(void*) 0                        // array buffer offset
+		);
+	}
 	/**
 	 * Draw function.
 	 * @param lightPos - Position of the light source.
@@ -147,6 +164,8 @@ public:
 	 * @param P - Projection matrix.
 	 */
 	void draw(glm::vec3 lightPos, glm::mat4 M, glm::mat4 V, glm::mat4 P) {
+		updateSnow();
+
 		glm::mat4 MVP = P*V*M;
 		glBindVertexArray(vertexArrayID);
 		glUseProgram(programID);

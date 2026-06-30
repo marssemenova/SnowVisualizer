@@ -82,7 +82,6 @@ int main() {
 
     // setup snow gen obj
     SnowRenderer snowGen;
-    SnowGeneratorExperimentation snowGenExp;
     GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
     snowGen = *(new SnowRenderer(numParticles, extent, temp));
 
