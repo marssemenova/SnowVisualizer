@@ -1,5 +1,5 @@
-#ifndef GEOMETRY_SPHERE_H
-#define GEOMETRY_SPHERE_H
+#ifndef GEOMETRY_SPHERE_HPP
+#define GEOMETRY_SPHERE_HPP
 
 #include <vector>
 

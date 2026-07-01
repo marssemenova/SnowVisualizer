@@ -5,8 +5,8 @@
  * @author Dr. Alexander Brandt, Mars Semenova
  */
 
-#ifndef _CAM_CONTROLS_H_
-#define _CAM_CONTROLS_H_
+#ifndef CAMERA_CONTROLS_HPP
+#define CAMERA_CONTROLS_HPP
 
 // cam enums
 const GLuint GLOBE_CAM = 1;

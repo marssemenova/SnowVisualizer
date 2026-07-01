@@ -9,7 +9,7 @@
 
 #include "SnowConstants.hpp"
 #include "SnowGenerator.hpp"
-#include "gpu.h"
+#include "gpu.hpp"
 
 class SnowRenderer {
 private:
@@ -141,7 +141,8 @@ public:
 	}
 
 	void updateSnow() {
-		updateSnowOnGPU(data.verts, data.numPolys*3);
+		//updateSnowOnGPU(data.verts, data.numPolys*3);
+		//test();
 		glBindVertexArray(vertexArrayID);
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
