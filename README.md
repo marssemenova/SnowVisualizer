@@ -17,13 +17,19 @@ using Cygwin and Visual Studio. Debugging info is also hard to provide as the co
 when the window crashes and due to time constraints I did not have time to develop a sophisticated
 system to help with installation.
 
-### 3. Compile the code into an executable
+### 3. Link CUDA
+```shell
+nvcc -c gpu.cu -o gpu.o
+nvcc -O3 gpu.o -o dlink.o -gencode arch=compute_86,code=sm_86 -dlink
+```
+
+### 4. Compile the code into an executable
 
 Use `cmake` and the provided `CMakeLists.txt` to compile the code into an executable. Make sure the
 generated `/include/glfw/` folder and the shaders folder (`/cmake-build-debug/shaders/`) are in the
 same directory as the executable.
 
-### 4. Run the executable
+### 5. Run the executable
 Running the execulable will generate snow based on preset parameters. Due to time constraints the input of arguments through
 the CLI was not implemented so you will have to change parameters in the runner (`main.cpp`) before
 compiling.
