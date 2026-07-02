@@ -33,6 +33,9 @@ private:
 	}
 
 	// improvement(?) functions
+	GLuint getNumLayersExperimental() {
+		return isWet ? NUM_LAYERS_WET : NUM_LAYERS_DRY;
+	}
 	GLuint getNumPolysPerLayerExperimental() {
 		return isWet ? 40 : 10; // TODO: for Zou says only needs to be 1/4 ot the other, need to experiment
 	}
@@ -52,26 +55,40 @@ private:
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
 	SnowGeneratorData generateSnow(GLuint numParticles, const GLfloat extent[3][2], GLuint alg) {
-		if (numParticles == 1) {
-			if (alg == EXPERIMENTAL_ALG) {
-				return generateSnowOnceExperimental();
-			}
-			return generateSnowOnceMoeslund();
-		}
 		SnowGeneratorData data;
-		SnowGeneratorData dataReturned[numParticles];
-		GLuint numEntries = 0;
 		GLfloat xPos, yPos, zPos;
+		if (numParticles == 1) {
+			if (alg == MOESLUND_ALG) {
+				data = generateSnowOnceMoeslund();
+			} else {
+				data = generateSnowOnceExperimental();
+			}
+			xPos = getRandFloat(extent[0][0], extent[0][1]);
+			yPos = getRandFloat(extent[1][0], extent[1][1]);
+			zPos = getRandFloat(extent[2][0], extent[2][1]);
+			data.snowflakeData[0].pos[0] = xPos;
+			data.snowflakeData[0].pos[1] = yPos;
+			data.snowflakeData[0].pos[2] = zPos;
+		}
+
+		SnowGeneratorData dataReturned[numParticles];
+		data.snowflakeData = (SnowflakeData*) malloc(numParticles*sizeof(SnowflakeData));
+		GLuint numEntries = 0;
 		for (int x = 0; x < numParticles; x++) {
 			xPos = getRandFloat(extent[0][0], extent[0][1]);
 			yPos = getRandFloat(extent[1][0], extent[1][1]);
 			zPos = getRandFloat(extent[2][0], extent[2][1]);
-			if (alg == EXPERIMENTAL_ALG) {
-				dataReturned[x] = generateSnowOnceExperimental();
-			} else {
+			data.snowflakeData[x].pos[0] = xPos;
+			data.snowflakeData[x].pos[1] = yPos;
+			data.snowflakeData[x].pos[2] = zPos;
+			if (alg == MOESLUND_ALG) {
 				dataReturned[x] = generateSnowOnceMoeslund();
+			} else {
+				dataReturned[x] = generateSnowOnceExperimental();
 			}
+			data.snowflakeData[x].ind = numEntries*9;
 			numEntries += dataReturned[x].numPolys;
+			data.snowflakeData[x].numPolys = dataReturned[x].numPolys;
 
 			// update pos
 			for (int i = 0; i < dataReturned[x].numPolys*9; i+=3) {
@@ -150,6 +167,7 @@ public:
 		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
+		data.snowflakeData = (SnowflakeData*) malloc(sizeof(SnowflakeData));
 
 		// gen first layer verts n norms
 		currRho = layerH;
@@ -259,11 +277,11 @@ public:
 	 * @param numLayersInp - Number of layers of the snow particle.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake.
 	 */
-	SnowGeneratorData generateSnowOnceExperimental(GLfloat epsTheta, GLfloat epsPhi, GLfloat opacityCoeff, GLfloat epsOpacity, GLuint numLayersInp) {
+	SnowGeneratorData generateSnowOnceExperimental(GLfloat epsTheta, GLfloat epsPhi, GLfloat opacityCoeff, GLfloat epsOpacity) {
 		// set vars
 		GLuint numPolys;
 		GLfloat d, rho, currRho, theta, phi, newTheta, newPhi;
-		GLuint numPolysPerLayer = getNumPolysPerLayerExperimental(), numLayers = numLayersInp;
+		GLuint numPolysPerLayer = getNumPolysPerLayerExperimental(), numLayers = getNumLayersExperimental();
 		numPolys = numPolysPerLayer * numLayers;
 		d = getRandFloat(0.5, 1.5)*diameter;
 		GLfloat layerH = (d/2.0f)/numLayers;
@@ -274,6 +292,7 @@ public:
 		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
 		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
+		data.snowflakeData = (SnowflakeData*) malloc(sizeof(SnowflakeData));
 
 		// gen first layer verts n norms
 		currRho = layerH;
@@ -381,7 +400,7 @@ public:
 	 * @return A SnowGeneratorData object with the generated data for the snowflake.
 	 */
 	SnowGeneratorData generateSnowOnceExperimental() {
-		return generateSnowOnceExperimental(isWet ? EPS_THETA_WET : EPS_THETA_DRY, isWet ? EPS_PHI_WET : EPS_PHI_DRY, OPACITY_COEFF, EPS_OPACITY, isWet ? NUM_LAYERS_WET : NUM_LAYERS_DRY);
+		return generateSnowOnceExperimental(isWet ? EPS_THETA_WET : EPS_THETA_DRY, isWet ? EPS_PHI_WET : EPS_PHI_DRY, OPACITY_COEFF, EPS_OPACITY);
 	}
 
 	/**

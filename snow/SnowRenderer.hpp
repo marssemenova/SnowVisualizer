@@ -11,6 +11,8 @@
 #include "SnowGenerator.hpp"
 #include "gpu.hpp"
 
+using namespace std;
+
 class SnowRenderer {
 private:
 	// params
@@ -140,9 +142,45 @@ public:
 		glBindVertexArray(0);
 	}
 
+	void updateSnowOnGPUTemp(float *verts) { // TODO: del
+		vector<int> newSnowInds;
+		SnowflakeData snowflakeData;
+		GLuint currInd, numNewSnow = 0;
+		for (int x = 0; x < numParticles; x++) {
+			snowflakeData = data.snowflakeData[x];
+			if (snowflakeData.pos[1] < extent[1][0]) {
+				newSnowInds.push_back(x);
+				numNewSnow++;
+			} else {
+				currInd = snowflakeData.ind;
+				for (int i = currInd; i < currInd + snowflakeData.numPolys*9; i+=3) {
+					verts[i + 1] -= 2.0f; // TODO: make var
+				}
+				data.snowflakeData[x].pos[1] -= 2.0f; // TODO: make var
+			}
+		}
+		if (numNewSnow > 0) {
+			GLfloat topExtent[3][2];
+			memcpy(topExtent, extent, 6*sizeof(GLfloat));
+			topExtent[1][0] = topExtent[1][1];
+			SnowGeneratorData newSnowData = snowGenerator.generateSnowExperimental(numNewSnow, topExtent); // TODO: for varied snowflake numPolys would have to change implementation
+			int currVert = 0;
+			for (int x = 0; x < newSnowInds.size(); x++) {
+				snowflakeData = data.snowflakeData[newSnowInds[x]];
+				memcpy(data.snowflakeData[newSnowInds[x]].pos, newSnowData.snowflakeData[x].pos, 3*sizeof(GLfloat));
+				data.snowflakeData[newSnowInds[x]].pos[1] = newSnowData.snowflakeData[x].pos[1];
+				data.snowflakeData[newSnowInds[x]].pos[2] = newSnowData.snowflakeData[x].pos[2];
+				currInd = snowflakeData.ind;
+				for (int i = 0; i < snowflakeData.numPolys*9; i++) {
+					verts[currInd + i] = newSnowData.verts[currVert + i];
+				}
+				currVert += snowflakeData.numPolys*9;
+			}
+		}
+	}
+
 	void updateSnow() {
-		//updateSnowOnGPU(data.verts, data.numPolys*3);
-		//test();
+		updateSnowOnGPUTemp(data.verts);
 		glBindVertexArray(vertexArrayID);
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);

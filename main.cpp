@@ -47,7 +47,6 @@ int main() {
     GLuint whichCam = FIRST_PERSON_CAM;
     GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -200.0, maxZ = -100.0;
     GLfloat temp = -5.0;
-    bool exp = false;
 
     // def vars
     float screenW = SCR_WIDTH;
