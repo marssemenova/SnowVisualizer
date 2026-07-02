@@ -10,37 +10,36 @@
 
 #include "SnowConstants.hpp"
 #include "SnowGeneratorData.hpp"
-#include "../util/Util.hpp"
 
 class SnowGenerator {
 private:
 	// params
-	GLfloat diameter; // calced in cm based on temp, fluctuates by 50%, in cm
-	GLfloat density; // calced based on temp, affects amt of layers + amt of polys + alpha
+	float diameter; // calced in cm based on temp, fluctuates by 50%, in cm
+	float density; // calced based on temp, affects amt of layers + amt of polys + alpha
 	bool isWet;
 
 	// Moeslund implementation functions
-	GLuint getNumLayersMoeslund() {
+	unsigned getNumLayersMoeslund() {
 		return 6; // guessed
 	}
 
-	GLuint getNumPolysPerLayerMoeslund() {
+	unsigned getNumPolysPerLayerMoeslund() {
 		return isWet ? 40 : 10; // for Zou says only needs to be 1/4 ot the other
 	}
 
-	GLfloat getOpacityMoeslund() {
+	float getOpacityMoeslund() {
 		return 0.5; // const guessed from imgs in paper
 	}
 
 	// improvement(?) functions
-	GLuint getNumLayersExperimental() {
+	unsigned getNumLayersExperimental() {
 		return isWet ? NUM_LAYERS_WET : NUM_LAYERS_DRY;
 	}
-	GLuint getNumPolysPerLayerExperimental() {
+	unsigned getNumPolysPerLayerExperimental() {
 		return isWet ? 40 : 10; // TODO: for Zou says only needs to be 1/4 ot the other, need to experiment
 	}
 
-	GLfloat getOpacityExperimental(GLfloat opacityCoeff) {
+	float getOpacityExperimental(float opacityCoeff) {
 		return opacityCoeff * density;
 	}
 
@@ -54,9 +53,9 @@ private:
 	 * experimental algorithm (2). Constants for these are defined in SnowConstants.hpp (MOESLUND_ALG and EXPERIMENTAL_ALG, respectively).
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
-	SnowGeneratorData generateSnow(GLuint numParticles, const GLfloat extent[3][2], GLuint alg) {
+	SnowGeneratorData generateSnow(unsigned numParticles, const float extent[3][2], unsigned alg) {
 		SnowGeneratorData data;
-		GLfloat xPos, yPos, zPos;
+		float xPos, yPos, zPos;
 		if (numParticles == 1) {
 			if (alg == MOESLUND_ALG) {
 				data = generateSnowOnceMoeslund();
@@ -71,9 +70,9 @@ private:
 			data.snowflakeData[0].pos[2] = zPos;
 		}
 
-		SnowGeneratorData dataReturned[numParticles];
+		SnowGeneratorData* dataReturned = (SnowGeneratorData*) malloc(numParticles*sizeof(SnowGeneratorData)); // TODO: malloc
 		data.snowflakeData = (SnowflakeData*) malloc(numParticles*sizeof(SnowflakeData));
-		GLuint numEntries = 0;
+		unsigned numEntries = 0;
 		for (int x = 0; x < numParticles; x++) {
 			xPos = getRandFloat(extent[0][0], extent[0][1]);
 			yPos = getRandFloat(extent[1][0], extent[1][1]);
@@ -99,10 +98,10 @@ private:
 		}
 
 		data.numPolys = numEntries;
-		data.verts = (GLfloat*) malloc(numEntries*9*sizeof(GLfloat));
-		data.normals = (GLfloat*) malloc(numEntries*9*sizeof(GLfloat));
-		data.colours = (GLfloat*) malloc(numEntries*12*sizeof(GLfloat));
-		GLuint offset = 0;
+		data.verts = (float*) malloc(numEntries*9*sizeof(float));
+		data.normals = (float*) malloc(numEntries*9*sizeof(float));
+		data.colours = (float*) malloc(numEntries*12*sizeof(float));
+		unsigned offset = 0;
 		for (int x = 0; x < numParticles; x++) {
 			for (int i = 0; i < dataReturned[x].numPolys*9; i++) {
 				data.verts[i + offset] = dataReturned[x].verts[i];
@@ -118,6 +117,8 @@ private:
 			offset += dataReturned[x].numPolys*12;
 		}
 
+		// TODO: free
+
 		return data;
 	}
 
@@ -126,7 +127,7 @@ public:
 	 * Constructor for SnowGenerator.
 	 * @param temp - Temperature of the simulation.
 	 */
-	SnowGenerator(GLfloat temp) {
+	SnowGenerator(float temp) {
 		if (temp <= DIAMETER_THRESH) {
 			diameter = 0.015*pow(abs(temp), -0.35);
 		} else {
@@ -154,19 +155,19 @@ public:
 	 */
 	SnowGeneratorData generateSnowOnceMoeslund() {
 		// set vars
-		GLuint numPolys;
-		GLfloat d, rho, currRho, theta, phi, newTheta, newPhi;
-		GLuint numPolysPerLayer = getNumPolysPerLayerMoeslund(), numLayers = getNumLayersMoeslund();
+		unsigned numPolys;
+		float d, rho, currRho, theta, phi, newTheta, newPhi;
+		unsigned numPolysPerLayer = getNumPolysPerLayerMoeslund(), numLayers = getNumLayersMoeslund();
 		numPolys = numPolysPerLayer * numLayers;
 		d = getRandFloat(0.5, 1.5)*diameter;
-		GLfloat layerH = (d/2.0f)/numLayers;
+		float layerH = (d/2.0f)/numLayers;
 
 		// set up data obj
 		SnowGeneratorData data;
 		data.numPolys = numPolys;
-		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
-		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
-		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
+		data.verts = (float*) malloc(numPolys*9*sizeof(float));
+		data.normals = (float*) malloc(numPolys*9*sizeof(float));
+		data.colours = (float*) malloc(numPolys*12*sizeof(float));
 		data.snowflakeData = (SnowflakeData*) malloc(sizeof(SnowflakeData));
 
 		// gen first layer verts n norms
@@ -200,9 +201,9 @@ public:
 		}
 
 		// gen verts n norms
-		GLuint refTrig, refPt, refPtInd;
-		GLfloat newRho, refTheta, refPhi, refX, refY, refZ;
-		GLfloat pt[3];
+		unsigned refTrig, refPt, refPtInd;
+		float newRho, refTheta, refPhi, refX, refY, refZ;
+		float pt[3];
 		for (int x = numPolysPerLayer*9; x < numPolys*9; x+=numPolysPerLayer*9) {
 			// updates
 			currRho += layerH;
@@ -277,21 +278,21 @@ public:
 	 * @param numLayersInp - Number of layers of the snow particle.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake.
 	 */
-	SnowGeneratorData generateSnowOnceExperimental(GLfloat epsTheta, GLfloat epsPhi, GLfloat opacityCoeff, GLfloat epsOpacity) {
+	SnowGeneratorData generateSnowOnceExperimental(float epsTheta, float epsPhi, float opacityCoeff, float epsOpacity) {
 		// set vars
-		GLuint numPolys;
-		GLfloat d, rho, currRho, theta, phi, newTheta, newPhi;
-		GLuint numPolysPerLayer = getNumPolysPerLayerExperimental(), numLayers = getNumLayersExperimental();
+		unsigned numPolys;
+		float d, rho, currRho, theta, phi, newTheta, newPhi;
+		unsigned numPolysPerLayer = getNumPolysPerLayerExperimental(), numLayers = getNumLayersExperimental();
 		numPolys = numPolysPerLayer * numLayers;
 		d = getRandFloat(0.5, 1.5)*diameter;
-		GLfloat layerH = (d/2.0f)/numLayers;
+		float layerH = (d/2.0f)/numLayers;
 
 		// set up data obj
 		SnowGeneratorData data;
 		data.numPolys = numPolys;
-		data.verts = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
-		data.normals = (GLfloat*) malloc(numPolys*9*sizeof(GLfloat));
-		data.colours = (GLfloat*) malloc(numPolys*12*sizeof(GLfloat));
+		data.verts = (float*) malloc(numPolys*9*sizeof(float));
+		data.normals = (float*) malloc(numPolys*9*sizeof(float));
+		data.colours = (float*) malloc(numPolys*12*sizeof(float));
 		data.snowflakeData = (SnowflakeData*) malloc(sizeof(SnowflakeData));
 
 		// gen first layer verts n norms
@@ -325,9 +326,9 @@ public:
 		}
 
 		// gen verts n norms
-		GLuint refTrig, refPt, refPtInd;
-		GLfloat newRho, refTheta, refPhi, refX, refY, refZ;
-		GLfloat pt[3];
+		unsigned refTrig, refPt, refPtInd;
+		float newRho, refTheta, refPhi, refX, refY, refZ;
+		float pt[3];
 		for (int x = numPolysPerLayer*9; x < numPolys*9; x+=numPolysPerLayer*9) {
 			// updates
 			currRho += layerH;
@@ -380,7 +381,7 @@ public:
 		}
 
 		// set colours
-		GLfloat opacity;
+		float opacity;
 		for (int x = 0; x < numPolys*12; x+=12) {
 			opacity = getOpacityExperimental(opacityCoeff);
 			opacity = getRandFloat(opacity - opacity*epsOpacity, opacity + opacity*epsOpacity);
@@ -411,7 +412,7 @@ public:
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
-	SnowGeneratorData generateSnow(GLuint numParticles, const GLfloat extent[3][2]) {
+	SnowGeneratorData generateSnow(unsigned numParticles, const float extent[3][2]) {
 		return generateSnowExperimental(numParticles, extent);
 	}
 
@@ -423,7 +424,7 @@ public:
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
-	SnowGeneratorData generateSnowMoeslund(GLuint numParticles, const GLfloat extent[3][2]) {
+	SnowGeneratorData generateSnowMoeslund(unsigned numParticles, const float extent[3][2]) {
 		return generateSnow(numParticles, extent, MOESLUND_ALG);
 	}
 
@@ -435,7 +436,7 @@ public:
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
-	SnowGeneratorData generateSnowExperimental(GLuint numParticles, const GLfloat extent[3][2]) {
+	SnowGeneratorData generateSnowExperimental(unsigned numParticles, const float extent[3][2]) {
 		return generateSnow(numParticles, extent, EXPERIMENTAL_ALG);
 	}
 };

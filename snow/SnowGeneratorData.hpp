@@ -9,16 +9,16 @@
 #define SNOWGENERATORDATA_HPP
 
 struct SnowflakeData {
-    GLfloat pos[3];
-    GLuint numPolys;
-    GLuint ind;
+    float pos[3];
+    unsigned numPolys;
+    unsigned ind;
 };
 
 struct SnowGeneratorData {
-    GLuint numPolys;
-    GLfloat* verts;
-    GLfloat* normals;
-    GLfloat* colours;
+    unsigned numPolys;
+    float* verts;
+    float* normals;
+    float* colours;
     SnowflakeData* snowflakeData;
 };
 

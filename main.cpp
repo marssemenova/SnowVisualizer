@@ -7,8 +7,10 @@
 
 #include "util/Constants.hpp"
 
+// OpenGL includes
+#include "util/ImportGL.hpp"
+
 #include "snow/SnowRenderer.hpp"
-#include "snow/experimentation/SnowGeneratorExperimentation.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);

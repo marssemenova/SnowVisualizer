@@ -7,21 +7,22 @@
 #ifndef SNOWRENDERER_HPP
 #define SNOWRENDERER_HPP
 
-#include "SnowConstants.hpp"
+#include "../util/ImportGL.hpp"
+
 #include "SnowGenerator.hpp"
-#include "gpu.hpp"
+#include "cuda/gpu.hpp"
 
 using namespace std;
 
 class SnowRenderer {
 private:
 	// params
-	GLuint numParticles;
-	GLfloat temp; // C
-	GLfloat extent[3][2]; // x range, y range, z range
+	unsigned numParticles;
+	float temp; // C
+	float extent[3][2]; // x range, y range, z range
 	SnowGenerator snowGenerator;
 	SnowGeneratorData data;
-	GLuint whichAlg;
+	unsigned whichAlg;
 
 	// render params
 	GLuint programID;
@@ -48,9 +49,9 @@ public:
 	 * @param whichAlg - Which algorithm to use for the snow particle generation. Either the Moeslund algorithm (1) or the
 	 * experimental algorithm (2). Constants for these are defined in SnowConstants.hpp (MOESLUND_ALG and EXPERIMENTAL_ALG, respectively).
 	 */
-	SnowRenderer(GLuint numParticles, const GLfloat extentInp[3][2], GLfloat temp, GLuint whichAlg) : numParticles(numParticles), temp(temp), whichAlg(whichAlg) {
+	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp, unsigned whichAlg) : numParticles(numParticles), temp(temp), whichAlg(whichAlg) {
 		// set vars
-		memcpy(extent, extentInp, 6*sizeof(GLfloat));
+		memcpy(extent, extentInp, 6*sizeof(float));
 
 		// create generator
 		snowGenerator = SnowGenerator(temp);
@@ -75,7 +76,7 @@ public:
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @param temp - Temperature of the simulation.
 	 */
-	SnowRenderer(GLuint numParticles, const GLfloat extentInp[3][2], GLfloat temp) : SnowRenderer(numParticles, extentInp, temp, EXPERIMENTAL_ALG) {};
+	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp) : SnowRenderer(numParticles, extentInp, temp, EXPERIMENTAL_ALG) {};
 
 	/**
 	 * Default constructor for SnowRenderer.
@@ -99,7 +100,7 @@ public:
 		// vertices
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(
 			0,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -113,7 +114,7 @@ public:
 		// normals
 		glGenBuffers(1, &normalBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.normals, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.numPolys * 9, data.normals, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(
 			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -127,7 +128,7 @@ public:
 		// colours
 		glGenBuffers(1, &colorBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 12, data.colours, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.numPolys * 12, data.colours, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(
 			2,                                // attribute. No particular reason for 1, but must match the layout in the shader.
@@ -142,49 +143,12 @@ public:
 		glBindVertexArray(0);
 	}
 
-	void updateSnowOnGPUTemp(float *verts) { // TODO: del
-		vector<int> newSnowInds;
-		SnowflakeData snowflakeData;
-		GLuint currInd, numNewSnow = 0;
-		for (int x = 0; x < numParticles; x++) {
-			snowflakeData = data.snowflakeData[x];
-			if (snowflakeData.pos[1] < extent[1][0]) {
-				newSnowInds.push_back(x);
-				numNewSnow++;
-			} else {
-				currInd = snowflakeData.ind;
-				for (int i = currInd; i < currInd + snowflakeData.numPolys*9; i+=3) {
-					verts[i + 1] -= 2.0f; // TODO: make var
-				}
-				data.snowflakeData[x].pos[1] -= 2.0f; // TODO: make var
-			}
-		}
-		if (numNewSnow > 0) {
-			GLfloat topExtent[3][2];
-			memcpy(topExtent, extent, 6*sizeof(GLfloat));
-			topExtent[1][0] = topExtent[1][1];
-			SnowGeneratorData newSnowData = snowGenerator.generateSnowExperimental(numNewSnow, topExtent); // TODO: for varied snowflake numPolys would have to change implementation
-			int currVert = 0;
-			for (int x = 0; x < newSnowInds.size(); x++) {
-				snowflakeData = data.snowflakeData[newSnowInds[x]];
-				memcpy(data.snowflakeData[newSnowInds[x]].pos, newSnowData.snowflakeData[x].pos, 3*sizeof(GLfloat));
-				data.snowflakeData[newSnowInds[x]].pos[1] = newSnowData.snowflakeData[x].pos[1];
-				data.snowflakeData[newSnowInds[x]].pos[2] = newSnowData.snowflakeData[x].pos[2];
-				currInd = snowflakeData.ind;
-				for (int i = 0; i < snowflakeData.numPolys*9; i++) {
-					verts[currInd + i] = newSnowData.verts[currVert + i];
-				}
-				currVert += snowflakeData.numPolys*9;
-			}
-		}
-	}
-
 	void updateSnow() {
-		updateSnowOnGPUTemp(data.verts);
+		updateSnowOnGPU(data.verts, numParticles, snowGenerator, data, extent);
 		glBindVertexArray(vertexArrayID);
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(
 			0,                                // attribute. No particular reason for 1, but must match the layout in the shader.
