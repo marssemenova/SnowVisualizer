@@ -144,7 +144,7 @@ public:
 	}
 
 	void updateSnow() {
-		updateSnowOnGPU(data.verts, numParticles, data, extent);
+		updateSnowOnGPU(data, numParticles, extent);
 		glBindVertexArray(vertexArrayID);
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
