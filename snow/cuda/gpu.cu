@@ -16,12 +16,28 @@ using namespace std;
 #define GRAVITY 2.0f
 
 // snow kernel params
-#define SNOW_BLOCK_SIZE 256
-#define SNOW_BATCH_SIZE 256
+#define SNOW_BLOCK_SIZE 1024
+#define SNOW_BATCH_SIZE 8
 
-__global__ void updateSnow(float *verts, SnowflakeData *snowflakeData, unsigned numParticles, float (*extent)[2]) {
+// host vars
+float *h_verts;
+float *h_normals;
+SnowflakeData *h_snowflakeData;
+int snowNumBlocks;
+int numPolys;
+int h_numParticles;
+
+// dev vars
+float *d_verts;
+float *d_normals;
+SnowflakeData *d_snowflakeData;
+float (*d_extent)[2];
+
+// TODO: remember abt cudaHostMalloc
+
+__global__ void updateSnow(float *verts, float *norms, SnowflakeData *snowflakeData, unsigned numParticles, float (*extent)[2]) { // TODO: pass params every time or make dev vars?
     unsigned kernelInd = (blockIdx.x*SNOW_BLOCK_SIZE + threadIdx.x)*SNOW_BATCH_SIZE;
-    if (kernelInd >= numParticles) {
+    if (kernelInd > numParticles) {
         return;
     }
     SnowflakeData currSnowflakeData;
@@ -42,29 +58,45 @@ __global__ void updateSnow(float *verts, SnowflakeData *snowflakeData, unsigned 
     }
 }
 
-extern void updateSnowOnGPU(SnowGeneratorData data, unsigned numParticles, float extent[3][2]) { // TODO: refactor bc 10k already looks bad (could be lack of freeing?)
-    // allocate dev mem
-    float *d_verts;
+extern void initSnowOnGPU(SnowGeneratorData data, unsigned numParticles, float extent[3][2]) {
+    // save refs
+    h_verts = data.verts;
+    h_normals = data.normals;
+    snowNumBlocks = ceil(numParticles/(SNOW_BLOCK_SIZE*SNOW_BATCH_SIZE*1.0)); // TODO: mem access block size (256) dictates snow batch size
+    numPolys = data.numPolys;
+    h_numParticles = numParticles;
+
+    // cuda malloc
     cudaMalloc((void**)&d_verts, data.numPolys*9*sizeof(float));
-    SnowflakeData *d_snowflakeData;
+    cudaMalloc((void**)&d_normals, data.numPolys*9*sizeof(float));
     cudaMalloc((void**)&d_snowflakeData, numParticles*sizeof(SnowflakeData));
-    float (*d_extent)[2];
     cudaMalloc((void**)&d_extent, sizeof(float[3][2]));
 
-    // copy host to dev
+    // copy data to host
     cudaMemcpy(d_verts, data.verts, data.numPolys*9*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_normals, data.normals, data.numPolys*9*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_snowflakeData, data.snowflakeData, numParticles*sizeof(SnowflakeData), cudaMemcpyHostToDevice);
     cudaMemcpy(d_extent, extent, sizeof(float[3][2]), cudaMemcpyHostToDevice);
+}
 
+extern void updateSnowOnGPU() {
     // dispatch kernel
-    int snowNumBlocks = ceil(numParticles/(SNOW_BLOCK_SIZE*SNOW_BATCH_SIZE*1.0));
-    updateSnow<<<snowNumBlocks,SNOW_BLOCK_SIZE>>>(d_verts, d_snowflakeData, numParticles, d_extent);
+    updateSnow<<<snowNumBlocks,SNOW_BLOCK_SIZE>>>(d_verts, d_normals, d_snowflakeData, h_numParticles, d_extent);
     cudaDeviceSynchronize();
 
     // fetch work
-    int error = cudaMemcpy(data.verts, d_verts, data.numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(data.snowflakeData, d_snowflakeData, numParticles*sizeof(SnowflakeData), cudaMemcpyDeviceToHost);
-    cudaFree(d_verts);
-    cudaFree(d_snowflakeData);
-    cudaFree(d_extent);
+    cudaMemcpy(h_verts, d_verts, numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_normals, d_normals, numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_snowflakeData, d_snowflakeData, h_numParticles*sizeof(SnowflakeData), cudaMemcpyDeviceToHost);
 }
+
+/** TODO
+ * - flatten SnowflakeData
+ * - make gpu vars __device__ vars
+ * - refactor alignment
+ * - check if any if statements avoidable
+ * - free mem (global)
+ * - __constant__ for extent
+ * - split kernels (in vert update can fo 1 particle per thread)
+ * -
+*/
