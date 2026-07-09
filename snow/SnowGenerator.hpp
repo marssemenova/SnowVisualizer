@@ -117,7 +117,8 @@ private:
 			offset += dataReturned[x].numPolys*12;
 		}
 
-		// TODO: free
+		// free
+		free(dataReturned);
 
 		return data;
 	}
