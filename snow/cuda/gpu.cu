@@ -51,13 +51,10 @@ float *d_snowOffsets;
  * vertices in the vertices array.
  */
 __global__ void snowApplyGrav(float *d_snowflakeDataFlat, float *d_snowOffsets) {
-    unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE + threadIdx.x;
-    unsigned alignment = SNOW_GRAV_BLOCK_SIZE/SNOW_GRAV_BATCH_SIZE; // TODO: check math
-    if (kernelInd >= alignment) { // TODO: is there a way to avoid this if statement
-        return;
-    }
+    unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
+    unsigned alignment = SNOW_GRAV_BLOCK_SIZE; // TODO: check math
     float offset;
-    for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE, d_numParticles); x+=alignment) {
+    for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*SNOW_GRAV_BLOCK_SIZE, d_numParticles); x+=alignment) {
         if (d_snowflakeDataFlat[3*x+1] < d_extent[2]) {
             offset = d_extent[3] - d_snowflakeDataFlat[3*x+1];
         } else {
@@ -105,7 +102,7 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     h_verts = data.verts;
     h_normals = data.normals;
     h_snowGravNumBlocks = ceil(h_numParticles/(SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE*1.0)); // TODO: mem access block size (256) dictates snow batch size
-    h_snowUpdateNumBlocks = ceil(h_numParticles/(SNOW_GRAV_BLOCK_SIZE*1.0));
+    h_snowUpdateNumBlocks = ceil(h_numParticles/(SNOW_UPDATE_BLOCK_SIZE*1.0));
     h_snowflakeData = data.snowflakeData;
 
     // flatten snowflakeData

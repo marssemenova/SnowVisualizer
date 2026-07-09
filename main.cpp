@@ -82,9 +82,8 @@ int main() {
     glm::vec3 lightpos(0.0f, 10.0f, -10.0f);
 
     // setup snow gen obj
-    SnowRenderer snowGen;
     GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
-    snowGen = *(new SnowRenderer(numParticles, extent, temp));
+    SnowRenderer snowGen(numParticles, extent, temp);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
