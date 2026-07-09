@@ -7,7 +7,7 @@
 #ifndef GPU_HPP
 #define GPU_HPP
 
-extern void updateSnowOnGPU();
-extern void initSnowOnGPU(SnowGeneratorData data, unsigned numParticles, float extent[3][2]);
+extern void snowUpdateGPU();
+extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float extent[3][2]);
 
 #endif

@@ -96,7 +96,7 @@ public:
 		} else {
 			data = snowGenerator.generateSnowMoeslund(numParticles, extent);
 		}
-		initSnowOnGPU(data, numParticles, extent);
+		snowInitGPU(data, numParticles, extent);
 
 		// vertices
 		glGenBuffers(1, &vertBuffer);
@@ -145,7 +145,7 @@ public:
 	}
 
 	void updateSnow() {
-		updateSnowOnGPU();
+		snowUpdateGPU();
 		glBindVertexArray(vertexArrayID);
 		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);

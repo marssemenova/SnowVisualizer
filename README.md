@@ -9,6 +9,7 @@
 - OpenGL 4.0 or newer
 - C++11 et al. (i.e. make sure you have everything installed for compiling and running a C++11 application)
 - `cmake` and `ninja` (used to compile the application using `CMakeLists.txt`)
+- CUDA and `nvcc` (developed with version 13.1)
 
 __*Note__: OpenGL, especially on Windows, is notoriously horrible to configure. I also set up my
 OpenGL development environment a while ago so I am not 100% sure these are the only dependencies.
@@ -17,11 +18,10 @@ using Cygwin and Visual Studio. Debugging info is also hard to provide as the co
 when the window crashes and due to time constraints I did not have time to develop a sophisticated
 system to help with installation.
 
-### 3. Link CUDA
-```shell
-nvcc -c gpu.cu -o gpu.o
-nvcc -O3 gpu.o -o dlink.o -gencode arch=compute_86,code=sm_86 -dlink
-```
+### 3. Compile CUDA code
+
+Run the shell script `compile.sh` in `/snow/cuda/` to generate the files needed to link the CUDA code to the rest 
+of the code.
 
 ### 4. Compile the code into an executable
 
@@ -59,6 +59,11 @@ Any documents related to this project are available in `/docs/`.
 Demos of the application can be found in `/docs/videos/`.
 
 ## TODOs
+
+- Implement random x and z coordinates when cycling dead particles
+- Implement build params
+
+### Legacy
 
 - Parse input args + if empty use experiment
 - Combine cams in `CameraControls.hpp`
