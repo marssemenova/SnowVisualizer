@@ -70,7 +70,7 @@ private:
 			data.snowflakeData[0].pos[2] = zPos;
 		}
 
-		SnowGeneratorData* dataReturned = (SnowGeneratorData*) malloc(numParticles*sizeof(SnowGeneratorData)); // TODO: malloc
+		SnowGeneratorData* dataReturned = (SnowGeneratorData*) malloc(numParticles*sizeof(SnowGeneratorData));
 		data.snowflakeData = (SnowflakeData*) malloc(numParticles*sizeof(SnowflakeData));
 		unsigned numEntries = 0;
 		for (int x = 0; x < numParticles; x++) {
@@ -98,6 +98,7 @@ private:
 		}
 
 		data.numPolys = numEntries;
+		// TODO: cudaHostMalloc
 		data.verts = (float*) malloc(numEntries*9*sizeof(float));
 		data.normals = (float*) malloc(numEntries*9*sizeof(float));
 		data.colours = (float*) malloc(numEntries*12*sizeof(float));

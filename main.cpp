@@ -5,9 +5,13 @@
  * @author Mars Semenova, Dr. Alexander Brandt
  */
 
+#include <chrono>
+#include <thread>
+
 #include "util/Constants.hpp"
 
 // OpenGL includes
+
 #include "util/ImportGL.hpp"
 
 #include "snow/SnowRenderer.hpp"
@@ -36,6 +40,7 @@ int main() {
         return -1;
     }
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     // glad: load all OpenGL function pointers
@@ -45,9 +50,9 @@ int main() {
     }
 
     // temp input vars (TODO: get from CLI args)
-    GLuint numParticles = 100;
+    GLuint numParticles = 10000;
     GLuint whichCam = FIRST_PERSON_CAM;
-    GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -200.0, maxZ = -100.0;
+    GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
     GLfloat temp = -5.0;
 
     // def vars
@@ -67,7 +72,7 @@ int main() {
     if (whichCam == GLOBE_CAM) {
         eye= {0.0f, 3.0f, 5.0f};
     } else {
-        eye = {0.0f, 0.0f, 10.0f};
+        eye = {0.0f, -50.0f, 200.0f};
     }
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     glm::vec3 center = {0.0f, 0.0f, 0.0f};
@@ -109,6 +114,7 @@ int main() {
         // swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
+        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     // check if the ESC key was pressed or the window was closed

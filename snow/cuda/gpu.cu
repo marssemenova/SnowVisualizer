@@ -17,7 +17,7 @@ using namespace std;
 
 // kernel params
 // apply grav
-#define SNOW_GRAV_BLOCK_SIZE 1024 // TODO: is def good for this?
+#define SNOW_GRAV_BLOCK_SIZE 1024
 #define SNOW_GRAV_BATCH_SIZE 8
 unsigned h_snowGravNumBlocks;
 // update snow
@@ -26,17 +26,15 @@ unsigned h_snowUpdateNumBlocks;
 
 // host vars
 float *h_verts;
-float *h_normals;
 SnowflakeData *h_snowflakeData;
 unsigned h_numPolys;
 unsigned h_numParticles;
 
 // dev vars
 float *d_verts;
-float *d_normals;
 float *d_snowflakeDataFlat;
 __constant__ __device__ float d_extent[6];
-__constant__ __device__ unsigned d_numParticles;
+unsigned *d_numParticles;
 float *d_snowOffsets;
 
 // TODO: remember abt cudaHostMalloc
@@ -50,40 +48,38 @@ float *d_snowOffsets;
  * is the number of polygons in the snowflake, and the 5th parameter is the first index of its
  * vertices in the vertices array.
  */
-__global__ void snowApplyGrav(float *d_snowflakeDataFlat, float *d_snowOffsets) {
+__global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets) {
     unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
-    unsigned alignment = SNOW_GRAV_BLOCK_SIZE; // TODO: check math
+    unsigned stride = SNOW_GRAV_BLOCK_SIZE;
     float offset;
-    for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*SNOW_GRAV_BLOCK_SIZE, d_numParticles); x+=alignment) {
-        if (d_snowflakeDataFlat[3*x+1] < d_extent[2]) {
-            offset = d_extent[3] - d_snowflakeDataFlat[3*x+1];
+    float yLimit = kernelInd % 2 == 0 ? d_extent[2] : d_extent[2] - (d_extent[3] - d_extent[2])*0.1f;
+    for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
+        if (d_snowflakeDataFlat[3*x+1] < yLimit) {
+            offset = (d_extent[3] - d_extent[2]);
         } else {
-            offset = -GRAVITY;
+            offset = -GRAVITY + GRAVITY*(x%2)*0.05;
         }
         d_snowOffsets[5*x+1] = offset;
-        d_snowflakeDataFlat[3*x+1] += offset; // TODO: right kernel?
+        d_snowflakeDataFlat[3*x+1] += offset;
     }
 }
 
 /**
  * Kernel which updates snow vertices and normals based on previously computed offsets.
  * @param d_verts - Vertice data on the GPU.
- * @param d_normals - Normal data on the GPU.
  * @param d_snowOffsets - Computed offset. Every 5 elements correspond to a
  * particle's data, where the first 3 elements are the offset, the 4th element
  * is the number of polygons in the snowflake, and the 5th parameter is the first index of its
  * vertices in the vertices array.
  */
-__global__ void snowUpdate(float *d_verts, float *d_normals, float *d_snowOffsets) {
+__global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_numParticles) {
     unsigned kernelInd = blockIdx.x*SNOW_UPDATE_BLOCK_SIZE + threadIdx.x;
-    if (kernelInd >= d_numParticles) { // TODO: same as grav kernel
-        return;
-    }
-    unsigned currInd = d_snowOffsets[5*kernelInd + 4];
-    float offsetY = d_snowOffsets[5*kernelInd + 1];
-    for (int x = currInd; x < currInd + d_snowOffsets[5*kernelInd + 3]*9; x+=3) {
-        d_verts[x + 1] += offsetY;
-        d_normals[x + 1] += offsetY;
+    if (kernelInd < *d_numParticles) {
+        unsigned currInd = d_snowOffsets[5*kernelInd + 4];
+        float offsetY = d_snowOffsets[5*kernelInd + 1];
+        for (int x = currInd; x < currInd + d_snowOffsets[5*kernelInd + 3]*9; x+=3) {
+            d_verts[x + 1] += offsetY;
+        }
     }
 }
 
@@ -100,7 +96,6 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     h_numPolys = data.numPolys;
     h_numParticles = numParticles;
     h_verts = data.verts;
-    h_normals = data.normals;
     h_snowGravNumBlocks = ceil(h_numParticles/(SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE*1.0)); // TODO: mem access block size (256) dictates snow batch size
     h_snowUpdateNumBlocks = ceil(h_numParticles/(SNOW_UPDATE_BLOCK_SIZE*1.0));
     h_snowflakeData = data.snowflakeData;
@@ -119,7 +114,7 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     }
 
     // flatten extent
-    float *h_extent; // TODO: ok to flatten or should I do arr[x][y]?
+    float *h_extent;
     cudaMallocHost((void**)&h_extent, 6*sizeof(float));
     for (int x = 0; x < 3; x++) {
         for (int i = 0; i < 2; i++) {
@@ -129,15 +124,14 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
 
     // copy data to host
     cudaMalloc((void**)&d_verts, h_numPolys*9*sizeof(float));
-    cudaMalloc((void**)&d_normals, h_numPolys*9*sizeof(float));
     cudaMalloc((void**)&d_snowflakeDataFlat, 3*h_numParticles*sizeof(float));
     cudaMalloc((void**)&d_snowOffsets, 5*h_numParticles*sizeof(float));
+    cudaMalloc((void**)&d_numParticles, sizeof(unsigned));
     cudaMemcpy(d_verts, h_verts, h_numPolys*9*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_normals, h_normals, h_numPolys*9*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_snowflakeDataFlat, h_snowflakeDataFlat, 3*h_numParticles*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_snowOffsets, h_snowOffsets, 5*h_numParticles*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_numParticles, &h_numParticles, sizeof(unsigned), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(d_extent, h_extent, 6*sizeof(float));
-    cudaMemcpyToSymbol(d_numParticles, &h_numParticles, sizeof(unsigned));
 
     // free
     cudaFree(h_snowflakeDataFlat);
@@ -151,12 +145,11 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
 extern void snowUpdateGPU() {
     // dispatch kernel
     cudaDeviceSynchronize();
-    snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_snowOffsets);
+    snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets);
     cudaDeviceSynchronize();
-    snowUpdate<<<h_snowUpdateNumBlocks,SNOW_UPDATE_BLOCK_SIZE>>>(d_verts, d_normals, d_snowOffsets);
+    snowUpdate<<<h_snowUpdateNumBlocks,SNOW_UPDATE_BLOCK_SIZE>>>(d_verts, d_snowOffsets, d_numParticles);
     cudaDeviceSynchronize();
 
     // fetch work
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_normals, d_normals, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
 }

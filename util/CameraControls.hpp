@@ -86,7 +86,7 @@ void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     );
     glm::normalize(direction);
 
-    float speed = 0.25f * radiusFromOrigin; //move faster further away
+    float speed = 5.0f * radiusFromOrigin; //move faster further away
     double currentTime = glfwGetTime();
     float deltaTime = (currentTime - lastTime);
     lastTime = currentTime;

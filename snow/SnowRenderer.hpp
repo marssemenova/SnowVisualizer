@@ -144,22 +144,16 @@ public:
 		glBindVertexArray(0);
 	}
 
+	/**
+	 * Update snow positions.
+	 */
 	void updateSnow() {
 		snowUpdateGPU();
 		glBindVertexArray(vertexArrayID);
-		glGenBuffers(1, &vertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(
-			0,                                // attribute. No particular reason for 1, but must match the layout in the shader.
-			3,                                // size
-			GL_FLOAT,                         // type
-			GL_FALSE,                         // normalized?
-			0,                                // stride
-			(void*) 0                        // array buffer offset
-		);
 	}
+
 	/**
 	 * Draw function.
 	 * @param lightPos - Position of the light source.
