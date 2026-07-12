@@ -10,6 +10,7 @@
 
 #include "SnowConstants.hpp"
 #include "SnowGeneratorData.hpp"
+#include "cuda/gpumalloc.hpp"
 
 class SnowGenerator {
 private:
@@ -71,7 +72,7 @@ private:
 		}
 
 		SnowGeneratorData* dataReturned = (SnowGeneratorData*) malloc(numParticles*sizeof(SnowGeneratorData));
-		data.snowflakeData = (SnowflakeData*) malloc(numParticles*sizeof(SnowflakeData));
+		data.snowflakeData = (SnowflakeData*) mallocGPU(numParticles*sizeof(SnowflakeData));
 		unsigned numEntries = 0;
 		for (int x = 0; x < numParticles; x++) {
 			xPos = getRandFloat(extent[0][0], extent[0][1]);
@@ -98,8 +99,7 @@ private:
 		}
 
 		data.numPolys = numEntries;
-		// TODO: cudaHostMalloc
-		data.verts = (float*) malloc(numEntries*9*sizeof(float));
+		data.verts = (float*) mallocGPU(numEntries*9*sizeof(float));
 		data.normals = (float*) malloc(numEntries*9*sizeof(float));
 		data.colours = (float*) malloc(numEntries*12*sizeof(float));
 		unsigned offset = 0;
@@ -167,10 +167,10 @@ public:
 		// set up data obj
 		SnowGeneratorData data;
 		data.numPolys = numPolys;
-		data.verts = (float*) malloc(numPolys*9*sizeof(float));
+		data.verts = (float*) mallocGPU(numPolys*9*sizeof(float));
 		data.normals = (float*) malloc(numPolys*9*sizeof(float));
 		data.colours = (float*) malloc(numPolys*12*sizeof(float));
-		data.snowflakeData = (SnowflakeData*) malloc(sizeof(SnowflakeData));
+		data.snowflakeData = (SnowflakeData*) mallocGPU(sizeof(SnowflakeData));
 
 		// gen first layer verts n norms
 		currRho = layerH;
@@ -292,10 +292,10 @@ public:
 		// set up data obj
 		SnowGeneratorData data;
 		data.numPolys = numPolys;
-		data.verts = (float*) malloc(numPolys*9*sizeof(float));
+		data.verts = (float*) mallocGPU(numPolys*9*sizeof(float));
 		data.normals = (float*) malloc(numPolys*9*sizeof(float));
 		data.colours = (float*) malloc(numPolys*12*sizeof(float));
-		data.snowflakeData = (SnowflakeData*) malloc(sizeof(SnowflakeData));
+		data.snowflakeData = (SnowflakeData*) mallocGPU(sizeof(SnowflakeData));
 
 		// gen first layer verts n norms
 		currRho = layerH;

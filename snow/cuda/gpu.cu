@@ -153,3 +153,9 @@ extern void snowUpdateGPU() {
     // fetch work
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
 }
+
+extern void* mallocGPU(size_t size) {
+    void *ptr;
+    cudaMallocHost((void**)&ptr, size);
+    return ptr;
+}
