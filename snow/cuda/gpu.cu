@@ -8,12 +8,15 @@
 #include <vector>
 #include <stdio.h>
 #include <cuda_runtime.h>
+#include <curand.h>
+#include <curand_kernel.h>
 
 using namespace std;
 
 #include "../SnowGeneratorData.hpp"
 
-#define GRAVITY 2.0f
+#define GRAVITY 0.2f
+#define SNOW_NOISE_Y 0.1f // TODO: ok to def?
 
 // kernel params
 // apply grav
@@ -37,7 +40,34 @@ __constant__ __device__ float d_extent[6];
 unsigned *d_numParticles;
 float *d_snowOffsets;
 
-// TODO: remember abt cudaHostMalloc
+/**
+ * Generate a random number usind curand. Source: https://codingbyexample.com/2020/09/15/curand/.
+ * @param seed - Seed.
+ * @param kernelInd - Index of thread.
+ * @param threadCallCount - Call # in kernel.
+ * @return Generated float.
+ */
+__device__ float getRandom(uint64_t seed, int kernelInd, int threadCallCount) {
+    curandState s;
+    curand_init(seed + kernelInd + threadCallCount, 0, 0, &s);
+    return curand_uniform(&s);
+}
+
+/**
+ * Get random float in the range [min, max) on the GPU.
+ * @param min - Min float generated.
+ * @param max - Max float generated, non-inclusive.
+ * @param seed - Seed.
+ * @param kernelInd - Index of thread.
+ * @param threadCallCount - Call # in kernel.
+ * @return Generated float.
+ */
+__device__ float getRandFloatGPU(float min, float max, uint64_t seed, int kernelInd, int threadCallCount) {
+    if (min == max) {
+        return min;
+    }
+    return min + (max - min) * (float) getRandom(seed, kernelInd, threadCallCount);
+}
 
 /**
  * Kernel which applies gravity to snow particles and stores the offset.
@@ -48,19 +78,37 @@ float *d_snowOffsets;
  * is the number of polygons in the snowflake, and the 5th parameter is the first index of its
  * vertices in the vertices array.
  */
-__global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets) {
+__global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets, uint64_t seed) {
     unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
     unsigned stride = SNOW_GRAV_BLOCK_SIZE;
-    float offset;
-    float yLimit = kernelInd % 2 == 0 ? d_extent[2] : d_extent[2] - (d_extent[3] - d_extent[2])*0.1f;
+    float xOffset, yOffset, zOffset;
+    float yOffsetRand;
     for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
-        if (d_snowflakeDataFlat[3*x+1] < yLimit) {
-            offset = (d_extent[3] - d_extent[2]);
+        if (d_snowflakeDataFlat[3*x+1] < d_extent[2]) {
+            //xOffset = getRandFloatGPU(d_extent[0], d_extent[1], seed, kernelInd, 0) - d_snowflakeDataFlat[3*x];
+            //yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extent[3] - d_extent[2])), SNOW_NOISE_Y*(d_extent[3] - d_extent[2]), seed, kernelInd, 1);
+            //zOffset = getRandFloatGPU(d_extent[4], d_extent[5], seed, kernelInd, 2) - d_snowflakeDataFlat[3*x+2];
+            xOffset = 0;
+            yOffsetRand = 0;
+            zOffset = 0;
+            yOffset = (d_extent[3] - d_extent[2]) + yOffsetRand;
         } else {
-            offset = -GRAVITY + GRAVITY*(x%2)*0.05;
+            yOffset = -GRAVITY;
+            xOffset = 0;
+            zOffset = 0;
         }
-        d_snowOffsets[5*x+1] = offset;
-        d_snowflakeDataFlat[3*x+1] += offset;
+
+        // update x
+         //d_snowOffsets[5*x] = xOffset;
+         //d_snowflakeDataFlat[3*x] += xOffset;
+
+        // update y
+        d_snowOffsets[5*x+1] = yOffset;
+        d_snowflakeDataFlat[3*x+1] += yOffset;
+
+        // update z
+         //d_snowOffsets[5*x+2] = zOffset;
+         //d_snowflakeDataFlat[3*x+2] += zOffset;
     }
 }
 
@@ -76,9 +124,10 @@ __global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_num
     unsigned kernelInd = blockIdx.x*SNOW_UPDATE_BLOCK_SIZE + threadIdx.x;
     if (kernelInd < *d_numParticles) {
         unsigned currInd = d_snowOffsets[5*kernelInd + 4];
-        float offsetY = d_snowOffsets[5*kernelInd + 1];
         for (int x = currInd; x < currInd + d_snowOffsets[5*kernelInd + 3]*9; x+=3) {
-            d_verts[x + 1] += offsetY;
+            for (int i = 0; i < 3; i++) {
+                d_verts[x + i] += d_snowOffsets[5*kernelInd + i];
+            }
         }
     }
 }
@@ -145,7 +194,7 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
 extern void snowUpdateGPU() {
     // dispatch kernel
     cudaDeviceSynchronize();
-    snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets);
+    snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, time(NULL));
     cudaDeviceSynchronize();
     snowUpdate<<<h_snowUpdateNumBlocks,SNOW_UPDATE_BLOCK_SIZE>>>(d_verts, d_snowOffsets, d_numParticles);
     cudaDeviceSynchronize();
@@ -154,6 +203,11 @@ extern void snowUpdateGPU() {
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
 }
 
+/**
+ * Allocate memory via cudaMallocHost.
+ * @param size - Size of the memory to allocate.
+ * @return A pointer to the allocated data.
+ */
 extern void* mallocGPU(size_t size) {
     void *ptr;
     cudaMallocHost((void**)&ptr, size);

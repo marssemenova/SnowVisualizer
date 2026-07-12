@@ -62,6 +62,7 @@ Demos of the application can be found in `/docs/videos/`.
 
 - Implement random x and z coordinates when cycling dead particles
 - Implement build params
+- Add noise to random positions of snowflakes
 
 ### Legacy
 
