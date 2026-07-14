@@ -80,6 +80,8 @@ float *h_verts;
 SnowflakeData *h_snowflakeData;
 unsigned h_numPolys;
 unsigned h_numParticles;
+Lattice h_srcLattice;
+Lattice h_destLattice;
 
 // dev vars
 float *d_verts;
@@ -87,14 +89,11 @@ float *d_snowflakeDataFlat;
 __constant__ __device__ float d_extent[6];
 unsigned *d_numParticles;
 float *d_snowOffsets;
-float *d_srcGrid; // TODO: del
-float *d_tempGrid; // TODO: del
-float *d_destGrid; // TODO: del
 curandState *d_globalState;
 Lattice *d_srcLattice;
 Lattice *d_destLattice;
 
-__global__ void lbmKernel(float *d_srcGrid, float *d_destGrid) {
+__global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     // compute the 3D position of the thread
     int x = threadIdx.x;
     int y = blockIdx.x;
@@ -102,13 +101,34 @@ __global__ void lbmKernel(float *d_srcGrid, float *d_destGrid) {
     // compute the corresponding 1D index
     int ind = x + y * Nx + z * Nx*Ny;
 
-    if (true) { // TODO: rem
-        return;
+    printf("y %d\n", ind);
+    Lattice currLatticeSiteB = (*d_srcLattice);
+    printf("testt %f\n", currLatticeSiteB.f0[0]);
+    if (ind < Nx*Ny*Nz) {
+        printf("yuhhhh\n");
+        Lattice currLatticeSite = (*d_srcLattice);
+        float f0 = currLatticeSite.f0[ind];
+        float f1 = currLatticeSite.f1[ind];
+        float f2 = currLatticeSite.f2[ind];
+        float f3 = currLatticeSite.f3[ind];
+        float f4 = currLatticeSite.f4[ind];
+        float f5 = currLatticeSite.f5[ind];
+        float f6 = currLatticeSite.f6[ind];
+        float f7 = currLatticeSite.f7[ind];
+        float f8 = currLatticeSite.f8[ind];
+        float f9 = currLatticeSite.f9[ind];
+        float f10 = currLatticeSite.f10[ind];
+        float f11 = currLatticeSite.f11[ind];
+        float f12 = currLatticeSite.f12[ind];
+        float f13 = currLatticeSite.f13[ind];
+        float f14 = currLatticeSite.f14[ind];
+        float f15 = currLatticeSite.f15[ind];
+        float f16 = currLatticeSite.f16[ind];
+        float f17 = currLatticeSite.f17[ind];
+        float f18 = currLatticeSite.f18[ind];
+        printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
     }
-
-    if (!(0 < x && x < Nx && 0 < y && y < Ny && 0 < z && z < Nz)){
-        return; // TODO: refactor
-    }
+    return;
     //float value = Lattice.f5[ind]; // TODO: ref, del
 
     // stream 19 pdfs from adjacent cells to curr cell
@@ -118,17 +138,17 @@ __global__ void lbmKernel(float *d_srcGrid, float *d_destGrid) {
         accessY = y-D_LATTICE_VELOCITIES[i][1];
         accessZ = z-D_LATTICE_VELOCITIES[i][2];
         accessInd = accessX + accessY * Nx + accessZ * Nx*Ny + i;
-        d_destGrid[LBM_Q*ind + i] = d_srcGrid[LBM_Q*accessInd + i]; // TODO: might need to swap, rn dest = stream + src = collide
+        //d_destGrid[LBM_Q*ind + i] = d_srcGrid[LBM_Q*accessInd + i]; // TODO: might need to swap, rn dest = stream + src = collide
     }
 
     // apply boundary conds
     // TODO: ?????
 
-    float *currCell = &d_srcGrid[LBM_Q*ind];
+   // float *currCell = &d_srcGrid[LBM_Q*ind];
     // calc density (rho)
     float density = 0;
     for (int i = 0; i < LBM_Q; i++) {
-        density += currCell[i];
+        //density += currCell[i];
     }
 
     // calc velocity (u)
@@ -136,7 +156,7 @@ __global__ void lbmKernel(float *d_srcGrid, float *d_destGrid) {
     for (int i = 0; i < 3; i++) {
         velocity[i] = 0;
         for (int j = 0; j < LBM_Q; j++) {
-            velocity[i] += currCell[j]*D_LATTICE_VELOCITIES[j][i];
+            //velocity[i] += currCell[j]*D_LATTICE_VELOCITIES[j][i];
         }
     }
 
@@ -152,19 +172,19 @@ __global__ void lbmKernel(float *d_srcGrid, float *d_destGrid) {
 
     // calc distro func (f_qi) at new time step + save 19 vals of distro func (f_qi) to curr cell
     for (int i = 0; i < LBM_Q; i++) {
-        currCell[i] = currCell[i] - (currCell[i] - feq[i])/LBM_TAU;
+        //currCell[i] = currCell[i] - (currCell[i] - feq[i])/LBM_TAU;
     }
 }
 
-__global__ void swapGrid(float *d_srcGrid, float *d_destGrid){
-    float *swap = d_srcGrid;
-    d_srcGrid=d_destGrid;
-    d_destGrid=d_srcGrid;
+__global__ void swapGrid(Lattice *d_srcLattice, Lattice *d_destLattice){
+    Lattice *swap = d_srcLattice;
+    d_srcLattice = d_destLattice;
+    d_destLattice = swap;
 }
 
 /**
  * Create and initialize curandState using seed, one for each thread.
- * Stores result in globalState[tid].
+ * Stores result in globalState[tid]. // TODO: params
  */
 __global__ void setupSnowRandState(curandState* d_globalState, uint64_t seed, unsigned *d_numParticles) {
     int tid = threadIdx.x  + blockDim.x * blockIdx.x;
@@ -175,7 +195,7 @@ __global__ void setupSnowRandState(curandState* d_globalState, uint64_t seed, un
 
 /**
  * Generate a floating point number in the range (min,max].
- * Note curand_uniform returns numbers in the  range (0.0, 1.0].
+ * Note curand_uniform returns numbers in the  range (0.0, 1.0]. // TODO: params
  */
 __device__ __forceinline__ float getRandFloatGPU(float min, float max, curandState* localState) {
     return min + (max - min) * curand_uniform(localState);
@@ -296,10 +316,11 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     cudaMemcpy(d_numParticles, &h_numParticles, sizeof(unsigned), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(d_extent, h_extent, 6*sizeof(float));
 
+
     // free
-    cudaFree(h_snowflakeDataFlat);
-    cudaFree(h_snowOffsets);
-    cudaFree(h_extent);
+    cudaFreeHost(h_snowflakeDataFlat);
+    cudaFreeHost(h_snowOffsets);
+    cudaFreeHost(h_extent);
 
     // init macroscopic quatities (i.e. density (rho) + velocity(u))
 
@@ -308,26 +329,34 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     // init equilibrium func (f_qi^eq)
 
     // init dest + src grids
-    float *h_destGrid, *h_srcGrid;
+    cudaMallocHost((void**)&h_srcLattice, sizeof(Lattice));
+    cudaMallocHost((void**)&h_destLattice, sizeof(Lattice));
     unsigned numCells = Nx*Ny*Nz;
-    cudaMallocHost((void**)&h_destGrid, LBM_Q*numCells*sizeof(float));
-    cudaMallocHost((void**)&h_srcGrid, LBM_Q*numCells*sizeof(float));
-    for (int x = 0; x < Nx; x++) {
-        for (int y = 0; y < Ny; y++) {
-            for (int z = 0;z < Nz;z++) {
-                for (int i = 0; i < LBM_Q; i++) {
-                    h_destGrid[LBM_Q*(x + y*Nx + z*Nx*Ny) + i] = 0;
-                    h_srcGrid[LBM_Q*(x + y*Nx + z*Nx*Ny) + i] = H_LATTICE_WEIGHTS[i];
-                }
-            }
-        }
+    for (int x = 0; x < numCells; x++) {
+        h_srcLattice.f0[x] = H_LATTICE_WEIGHTS[0];
+        h_srcLattice.f1[x] = H_LATTICE_WEIGHTS[1];
+        h_srcLattice.f2[x] = H_LATTICE_WEIGHTS[2];
+        h_srcLattice.f3[x] = H_LATTICE_WEIGHTS[3];
+        h_srcLattice.f4[x] = H_LATTICE_WEIGHTS[4];
+        h_srcLattice.f5[x] = H_LATTICE_WEIGHTS[5];
+        h_srcLattice.f6[x] = H_LATTICE_WEIGHTS[6];
+        h_srcLattice.f7[x] = H_LATTICE_WEIGHTS[7];
+        h_srcLattice.f8[x] = H_LATTICE_WEIGHTS[8];
+        h_srcLattice.f9[x] = H_LATTICE_WEIGHTS[9];
+        h_srcLattice.f10[x] = H_LATTICE_WEIGHTS[10];
+        h_srcLattice.f11[x] = H_LATTICE_WEIGHTS[11];
+        h_srcLattice.f12[x] = H_LATTICE_WEIGHTS[12];
+        h_srcLattice.f13[x] = H_LATTICE_WEIGHTS[13];
+        h_srcLattice.f14[x] = H_LATTICE_WEIGHTS[14];
+        h_srcLattice.f15[x] = H_LATTICE_WEIGHTS[15];
+        h_srcLattice.f16[x] = H_LATTICE_WEIGHTS[16];
+        h_srcLattice.f17[x] = H_LATTICE_WEIGHTS[17];
+        h_srcLattice.f18[x] = H_LATTICE_WEIGHTS[18];
     }
-    cudaMalloc((void**)&d_destGrid, LBM_Q*numCells*sizeof(float));
-    cudaMalloc((void**)&d_srcGrid, LBM_Q*numCells*sizeof(float));
-    cudaMemcpy(d_destGrid, h_destGrid, LBM_Q*numCells*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_srcGrid, h_srcGrid, LBM_Q*numCells*sizeof(float), cudaMemcpyHostToDevice);
-    cudaFree(h_destGrid);
-    cudaFree(h_srcGrid);
+    cudaMalloc((void**)&d_srcLattice, sizeof(Lattice));
+    cudaMalloc((void**)&d_destLattice, sizeof(Lattice));
+    cudaMemcpy(d_srcLattice, &h_srcLattice, sizeof(Lattice), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_destLattice, &h_destLattice, sizeof(Lattice), cudaMemcpyHostToDevice);
 
     // init rand
     cudaMalloc((void**)&d_globalState, h_numParticles*sizeof(curandState));
@@ -341,9 +370,10 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
 extern void snowUpdateGPU() {
     // dispatch kernels
     // LBM
-    lbmKernel<<<h_lbmBlockSize, h_lbmGridSize>>>(d_srcGrid, d_destGrid);
+    lbmKernel<<<h_lbmBlockSize, h_lbmGridSize>>>(d_srcLattice, d_destLattice);
+    printf("%s\n\n\n", cudaGetErrorName(cudaPeekAtLastError()));
     cudaDeviceSynchronize();
-    swapGrid<<<1,1>>>(d_srcGrid, d_destGrid);
+    swapGrid<<<1,1>>>(d_srcLattice, d_destLattice);
     cudaDeviceSynchronize();
 
     // apply forces to snow
