@@ -15,12 +15,12 @@ using namespace std;
 
 #include "../SnowGeneratorData.hpp"
 
-#define GRAVITY 2.0f
+#define GRAVITY 0.2f
 #define SNOW_NOISE_Y 0.1f // TODO: ok to def?
 
 #define LBM_Q 19
-#define LBM_C 1.0/3.0f
-#define LBM_TAU 5.0 // TODO: ????
+#define LBM_C 1.0/3.0f // from speed of sounds = 1/sqrt(3)
+#define LBM_TAU 1.0 // 3 * viscosity - 1/2
 __constant__ static const int D_LATTICE_VELOCITIES[19][3] = {
     {0,-1,-1},{-1,0,-1},{0,0,-1},{1,0,-1},{0,1,-1},{-1,-1,0},{0,-1,0},{1,-1,0},
     {-1,0,0}, {0,0,0},  {1,0,0}, {-1,1,0},{0,1,0}, {1,1,0},  {0,-1,1},{-1,0,1},
@@ -87,9 +87,12 @@ float *d_snowflakeDataFlat;
 __constant__ __device__ float d_extent[6];
 unsigned *d_numParticles;
 float *d_snowOffsets;
-float *d_srcGrid;
-float *d_tempGrid;
-float *d_destGrid;
+float *d_srcGrid; // TODO: del
+float *d_tempGrid; // TODO: del
+float *d_destGrid; // TODO: del
+curandState *d_globalState;
+Lattice *d_srcLattice;
+Lattice *d_destLattice;
 
 __global__ void lbmKernel(float *d_srcGrid, float *d_destGrid) {
     // compute the 3D position of the thread
@@ -160,32 +163,22 @@ __global__ void swapGrid(float *d_srcGrid, float *d_destGrid){
 }
 
 /**
- * Generate a random number usind curand. Source: https://codingbyexample.com/2020/09/15/curand/.
- * @param seed - Seed.
- * @param kernelInd - Index of thread.
- * @param threadCallCount - Call # in kernel.
- * @return Generated float.
+ * Create and initialize curandState using seed, one for each thread.
+ * Stores result in globalState[tid].
  */
-__device__ float getRandom(uint64_t seed, int kernelInd, int threadCallCount) {
-    curandState s;
-    curand_init(seed + kernelInd + threadCallCount, 0, 0, &s);
-    return curand_uniform(&s);
+__global__ void setupSnowRandState(curandState* d_globalState, uint64_t seed, unsigned *d_numParticles) {
+    int tid = threadIdx.x  + blockDim.x * blockIdx.x;
+    if (tid < *d_numParticles) {
+        curand_init(seed, tid, 0, &d_globalState[tid]);
+    }
 }
 
 /**
- * Get random float in the range [min, max) on the GPU.
- * @param min - Min float generated.
- * @param max - Max float generated, non-inclusive.
- * @param seed - Seed.
- * @param kernelInd - Index of thread.
- * @param threadCallCount - Call # in kernel.
- * @return Generated float.
+ * Generate a floating point number in the range (min,max].
+ * Note curand_uniform returns numbers in the  range (0.0, 1.0].
  */
-__device__ float getRandFloatGPU(float min, float max, uint64_t seed, int kernelInd, int threadCallCount) {
-    if (min == max) {
-        return min;
-    }
-    return min + (max - min) * (float) getRandom(seed, kernelInd, threadCallCount);
+__device__ __forceinline__ float getRandFloatGPU(float min, float max, curandState* localState) {
+    return min + (max - min) * curand_uniform(localState);
 }
 
 /**
@@ -197,20 +190,20 @@ __device__ float getRandFloatGPU(float min, float max, uint64_t seed, int kernel
  * is the number of polygons in the snowflake, and the 5th parameter is the first index of its
  * vertices in the vertices array.
  */
-__global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets, uint64_t seed) {
+__global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets, curandState* d_globalState) {
     unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
     unsigned stride = SNOW_GRAV_BLOCK_SIZE;
     float xOffset, yOffset, zOffset;
     float yOffsetRand;
+    curandState localState;
     for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
         if (d_snowflakeDataFlat[3*x+1] < d_extent[2]) {
-            //xOffset = getRandFloatGPU(d_extent[0], d_extent[1], seed, kernelInd, 0) - d_snowflakeDataFlat[3*x];
-            //yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extent[3] - d_extent[2])), SNOW_NOISE_Y*(d_extent[3] - d_extent[2]), seed, kernelInd, 1);
-            //zOffset = getRandFloatGPU(d_extent[4], d_extent[5], seed, kernelInd, 2) - d_snowflakeDataFlat[3*x+2];
-            xOffset = 0;
-            yOffsetRand = 0;
-            zOffset = 0;
+            localState = d_globalState[kernelInd];
+            xOffset = getRandFloatGPU(d_extent[0], d_extent[1], &localState) - d_snowflakeDataFlat[3*x];
+            yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extent[3] - d_extent[2])), SNOW_NOISE_Y*(d_extent[3] - d_extent[2]), &localState);
+            zOffset = getRandFloatGPU(d_extent[4], d_extent[5], &localState) - d_snowflakeDataFlat[3*x+2];
             yOffset = (d_extent[3] - d_extent[2]) + yOffsetRand;
+            d_globalState[kernelInd] = localState;
         } else {
             yOffset = -GRAVITY;
             xOffset = 0;
@@ -218,16 +211,16 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
         }
 
         // update x
-         //d_snowOffsets[5*x] = xOffset;
-         //d_snowflakeDataFlat[3*x] += xOffset;
+         d_snowOffsets[5*x] = xOffset;
+         d_snowflakeDataFlat[3*x] += xOffset;
 
         // update y
         d_snowOffsets[5*x+1] = yOffset;
         d_snowflakeDataFlat[3*x+1] += yOffset;
 
         // update z
-         //d_snowOffsets[5*x+2] = zOffset;
-         //d_snowflakeDataFlat[3*x+2] += zOffset;
+         d_snowOffsets[5*x+2] = zOffset;
+         d_snowflakeDataFlat[3*x+2] += zOffset;
     }
 }
 
@@ -336,6 +329,10 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     cudaFree(h_destGrid);
     cudaFree(h_srcGrid);
 
+    // init rand
+    cudaMalloc((void**)&d_globalState, h_numParticles*sizeof(curandState));
+    setupSnowRandState<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_globalState, time(NULL), d_numParticles);
+    cudaDeviceSynchronize();
 }
 
 /**
@@ -350,7 +347,7 @@ extern void snowUpdateGPU() {
     cudaDeviceSynchronize();
 
     // apply forces to snow
-    snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, time(NULL));
+    snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, d_globalState);
     cudaDeviceSynchronize();
 
     // update snow verts

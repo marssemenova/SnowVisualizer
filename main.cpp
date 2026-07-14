@@ -50,7 +50,7 @@ int main() {
     }
 
     // temp input vars (TODO: get from CLI args)
-    GLuint numParticles = 100;
+    GLuint numParticles = 1000;
     GLuint whichCam = FIRST_PERSON_CAM;
     GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
     GLfloat temp = -5.0;
