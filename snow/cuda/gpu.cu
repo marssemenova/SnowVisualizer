@@ -14,6 +14,7 @@
 using namespace std;
 
 #include "../SnowGeneratorData.hpp"
+#include "cuda_errors.h"
 
 #define GRAVITY 0.2f
 #define SNOW_NOISE_Y 0.1f // TODO: ok to def?
@@ -21,22 +22,16 @@ using namespace std;
 #define LBM_Q 19
 #define LBM_C 1.0/3.0f // from speed of sounds = 1/sqrt(3)
 #define LBM_TAU 1.0 // 3 * viscosity - 1/2
-__constant__ static const int D_LATTICE_VELOCITIES[19][3] = {
-    {0,-1,-1},{-1,0,-1},{0,0,-1},{1,0,-1},{0,1,-1},{-1,-1,0},{0,-1,0},{1,-1,0},
-    {-1,0,0}, {0,0,0},  {1,0,0}, {-1,1,0},{0,1,0}, {1,1,0},  {0,-1,1},{-1,0,1},
-    {0,0,1},  {1,0,1},  {0,1,1}
-};
-
-__constant__ static const float D_LATTICE_WEIGHTS[19] = {
-    1.0/36.0, 1.0/36.0, 2.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 2.0/36.0, 1.0/36.0,
-    2.0/36.0, 12.0/36.0,2.0/36.0, 1.0/36.0, 2.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0,
-    2.0/36.0, 1.0/36.0, 1.0/36.0
-};
-static const float H_LATTICE_WEIGHTS[19] = { // TODO: see if way to not have 2
-    1.0/36.0, 1.0/36.0, 2.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 2.0/36.0, 1.0/36.0,
-    2.0/36.0, 12.0/36.0,2.0/36.0, 1.0/36.0, 2.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0,
-    2.0/36.0, 1.0/36.0, 1.0/36.0
-};
+__constant__ static const int D_LATTICE_VELOCITIES[19][3] = { {0,0,0},
+    {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,1},
+    {1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}, {1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1}, {0,1,1}, {0,1,-1},  {0,-1,1},  {0,-1,-1}};
+__constant__ static const float D_LATTICE_WEIGHTS[19] = { 1.0/3.0,
+    1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0,
+    1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0,
+    1.0/36.0, 1.0/36.0, 1.0/36.0};
+static const float H_LATTICE_WEIGHTS[19] = { 1.0/3.0, // TODO: see if way to not have 2
+    1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0,
+    1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0};
 #define Nx 16 // TODO: make adjustable based on extent
 #define Ny 16
 #define Nz 16
@@ -80,8 +75,8 @@ float *h_verts;
 SnowflakeData *h_snowflakeData;
 unsigned h_numPolys;
 unsigned h_numParticles;
-Lattice h_srcLattice;
-Lattice h_destLattice;
+Lattice h_srcLattice; // TODO: del
+Lattice h_destLattice; // TODO: del
 
 // dev vars
 float *d_verts;
@@ -101,137 +96,168 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     // compute the corresponding 1D index
     int ind = x + y * Nx + z * Nx*Ny;
 
-    printf("y %d\n", ind);
-    Lattice currLatticeSiteB = (*d_srcLattice);
-    printf("testt %f\n", currLatticeSiteB.f0[0]);
 
-    if (!(ind < Nx*Ny*Nz)) {
+    if (!(ind < Nx*Ny*Nz)) { // TODO: ref
         return;
     }
-    Lattice srcLattice = (*d_srcLattice);
-    Lattice destLattice = (*d_destLattice);
-    printf("yuhhhh\n");
-    float f0 = srcLattice.f0[ind];
-    float f1 = srcLattice.f1[ind];
-    float f2 = srcLattice.f2[ind];
-    float f3 = srcLattice.f3[ind];
-    float f4 = srcLattice.f4[ind];
-    float f5 = srcLattice.f5[ind];
-    float f6 = srcLattice.f6[ind];
-    float f7 = srcLattice.f7[ind];
-    float f8 = srcLattice.f8[ind];
-    float f9 = srcLattice.f9[ind];
-    float f10 = srcLattice.f10[ind];
-    float f11 = srcLattice.f11[ind];
-    float f12 = srcLattice.f12[ind];
-    float f13 = srcLattice.f13[ind];
-    float f14 = srcLattice.f14[ind];
-    float f15 = srcLattice.f15[ind];
-    float f16 = srcLattice.f16[ind];
-    float f17 = srcLattice.f17[ind];
-    float f18 = srcLattice.f18[ind];
+/*
+    float f0 = d_srcLattice->f0[ind];
+    float f1 = d_srcLattice->f1[ind];
+    float f2 = d_srcLattice->f2[ind];
+    float f3 = d_srcLattice->f3[ind];
+    float f4 = d_srcLattice->f4[ind];
+    float f5 = d_srcLattice->f5[ind];
+    float f6 = d_srcLattice->f6[ind];
+    float f7 = d_srcLattice->f7[ind];
+    float f8 = d_srcLattice->f8[ind];
+    float f9 = d_srcLattice->f9[ind];
+    float f10 = d_srcLattice->f10[ind];
+    float f11 = d_srcLattice->f11[ind];
+    float f12 = d_srcLattice->f12[ind];
+    float f13 = d_srcLattice->f13[ind];
+    float f14 = d_srcLattice->f14[ind];
+    float f15 = d_srcLattice->f15[ind];
+    float f16 = d_srcLattice->f16[ind];
+    float f17 = d_srcLattice->f17[ind];
+    float f18 = d_srcLattice->f18[ind];
     printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
-
-    return;
-    //float value = Lattice.f5[ind]; // TODO: ref, del
+*/
 
     // stream 19 pdfs from adjacent cells to curr cell
-    int accessX, accessY, accessZ, accessInd;
+    int accessX, accessY, accessZ, accessInd; // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: i think boundary is based on accessX/Y/Z n if its out of bounds do smth
     accessX = x-D_LATTICE_VELOCITIES[0][0];
     accessY = y-D_LATTICE_VELOCITIES[0][1];
     accessZ = z-D_LATTICE_VELOCITIES[0][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f0[ind] = srcLattice.f0[accessInd]; // TODO: might need to swap, rn dest = stream + src = collide
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f0[ind] = d_srcLattice->f0[accessInd]; // TODO: might need to swap, rn dest = stream + src = collide
+    }
     accessX = x-D_LATTICE_VELOCITIES[1][0];
     accessY = y-D_LATTICE_VELOCITIES[1][1];
     accessZ = z-D_LATTICE_VELOCITIES[1][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f1[ind] = srcLattice.f1[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f1[ind] = d_srcLattice->f1[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[2][0];
     accessY = y-D_LATTICE_VELOCITIES[2][1];
     accessZ = z-D_LATTICE_VELOCITIES[2][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f2[ind] = srcLattice.f2[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f2[ind] = d_srcLattice->f2[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[3][0];
     accessY = y-D_LATTICE_VELOCITIES[3][1];
     accessZ = z-D_LATTICE_VELOCITIES[3][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f3[ind] = srcLattice.f3[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f3[ind] = d_srcLattice->f3[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[4][0];
     accessY = y-D_LATTICE_VELOCITIES[4][1];
     accessZ = z-D_LATTICE_VELOCITIES[4][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f4[ind] = srcLattice.f4[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f4[ind] = d_srcLattice->f4[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[5][0];
     accessY = y-D_LATTICE_VELOCITIES[5][1];
     accessZ = z-D_LATTICE_VELOCITIES[5][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f5[ind] = srcLattice.f5[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f5[ind] = d_srcLattice->f5[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[6][0];
     accessY = y-D_LATTICE_VELOCITIES[6][1];
     accessZ = z-D_LATTICE_VELOCITIES[6][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f6[ind] = srcLattice.f6[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f6[ind] = d_srcLattice->f6[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[7][0];
     accessY = y-D_LATTICE_VELOCITIES[7][1];
     accessZ = z-D_LATTICE_VELOCITIES[7][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f7[ind] = srcLattice.f7[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f7[ind] = d_srcLattice->f7[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[8][0];
     accessY = y-D_LATTICE_VELOCITIES[8][1];
     accessZ = z-D_LATTICE_VELOCITIES[8][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f8[ind] = srcLattice.f8[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f8[ind] = d_srcLattice->f8[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[9][0];
     accessY = y-D_LATTICE_VELOCITIES[9][1];
     accessZ = z-D_LATTICE_VELOCITIES[9][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f9[ind] = srcLattice.f9[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f9[ind] = d_srcLattice->f9[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[10][0];
     accessY = y-D_LATTICE_VELOCITIES[10][1];
     accessZ = z-D_LATTICE_VELOCITIES[10][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f10[ind] = srcLattice.f10[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f10[ind] = d_srcLattice->f10[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[11][0];
     accessY = y-D_LATTICE_VELOCITIES[11][1];
     accessZ = z-D_LATTICE_VELOCITIES[11][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f11[ind] = srcLattice.f11[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f11[ind] = d_srcLattice->f11[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[12][0];
     accessY = y-D_LATTICE_VELOCITIES[12][1];
     accessZ = z-D_LATTICE_VELOCITIES[12][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f12[ind] = srcLattice.f12[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f12[ind] = d_srcLattice->f12[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[13][0];
     accessY = y-D_LATTICE_VELOCITIES[13][1];
     accessZ = z-D_LATTICE_VELOCITIES[13][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f13[ind] = srcLattice.f13[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f13[ind] = d_srcLattice->f13[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[14][0];
     accessY = y-D_LATTICE_VELOCITIES[14][1];
     accessZ = z-D_LATTICE_VELOCITIES[14][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f14[ind] = srcLattice.f14[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f14[ind] = d_srcLattice->f14[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[15][0];
     accessY = y-D_LATTICE_VELOCITIES[15][1];
     accessZ = z-D_LATTICE_VELOCITIES[15][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f15[ind] = srcLattice.f15[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f15[ind] = d_srcLattice->f15[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[16][0];
     accessY = y-D_LATTICE_VELOCITIES[16][1];
     accessZ = z-D_LATTICE_VELOCITIES[16][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f16[ind] = srcLattice.f16[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f16[ind] = d_srcLattice->f16[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[17][0];
     accessY = y-D_LATTICE_VELOCITIES[17][1];
     accessZ = z-D_LATTICE_VELOCITIES[17][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f17[ind] = srcLattice.f17[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f17[ind] = d_srcLattice->f17[accessInd];
+    }
     accessX = x-D_LATTICE_VELOCITIES[18][0];
     accessY = y-D_LATTICE_VELOCITIES[18][1];
     accessZ = z-D_LATTICE_VELOCITIES[18][2];
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    destLattice.f18[ind] = srcLattice.f18[accessInd];
+    if (accessInd < Nx*Ny*Nz) {
+        d_destLattice->f18[ind] = d_srcLattice->f18[accessInd];
+    }
 
 
     // apply boundary conds
@@ -239,23 +265,23 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
 
    // float *currCell = &d_srcGrid[LBM_Q*ind];
     // calc density (rho)
-    float density = srcLattice.f0[ind] + srcLattice.f1[ind] + srcLattice.f2[ind] + srcLattice.f3[ind]
-                    + srcLattice.f4[ind] + srcLattice.f5[ind] + srcLattice.f6[ind]
-                    + srcLattice.f7[ind] + srcLattice.f8[ind] + srcLattice.f9[ind]
-                    + srcLattice.f10[ind] + srcLattice.f11[ind] + srcLattice.f12[ind]
-                    + srcLattice.f13[ind] + srcLattice.f14[ind] + srcLattice.f15[ind]
-                    + srcLattice.f16[ind] + srcLattice.f17[ind] + srcLattice.f18[ind];
+    float density = d_srcLattice->f0[ind] + d_srcLattice->f1[ind] + d_srcLattice->f2[ind] + d_srcLattice->f3[ind]
+                    + d_srcLattice->f4[ind] + d_srcLattice->f5[ind] + d_srcLattice->f6[ind]
+                    + d_srcLattice->f7[ind] + d_srcLattice->f8[ind] + d_srcLattice->f9[ind]
+                    + d_srcLattice->f10[ind] + d_srcLattice->f11[ind] + d_srcLattice->f12[ind]
+                    + d_srcLattice->f13[ind] + d_srcLattice->f14[ind] + d_srcLattice->f15[ind]
+                    + d_srcLattice->f16[ind] + d_srcLattice->f17[ind] + d_srcLattice->f18[ind];
 
     // calc velocity (u)
     float velocity[3];
     for (int i = 0; i < 3; i++) {
-        velocity[i] = srcLattice.f0[ind]*D_LATTICE_VELOCITIES[0][i] + srcLattice.f1[ind]*D_LATTICE_VELOCITIES[1][i] + srcLattice.f2[ind]*D_LATTICE_VELOCITIES[2][i]
-                    + srcLattice.f3[ind]*D_LATTICE_VELOCITIES[3][i] + srcLattice.f4[ind]*D_LATTICE_VELOCITIES[4][i] + srcLattice.f5[ind]*D_LATTICE_VELOCITIES[5][i]
-                    + srcLattice.f6[ind]*D_LATTICE_VELOCITIES[6][i] + srcLattice.f7[ind]*D_LATTICE_VELOCITIES[7][i] + srcLattice.f8[ind]*D_LATTICE_VELOCITIES[8][i]
-                    + srcLattice.f9[ind]*D_LATTICE_VELOCITIES[9][i] + srcLattice.f10[ind]*D_LATTICE_VELOCITIES[10][i] + srcLattice.f11[ind]*D_LATTICE_VELOCITIES[11][i]
-                    + srcLattice.f12[ind]*D_LATTICE_VELOCITIES[12][i] + srcLattice.f13[ind]*D_LATTICE_VELOCITIES[13][i] + srcLattice.f14[ind]*D_LATTICE_VELOCITIES[14][i]
-                    + srcLattice.f15[ind]*D_LATTICE_VELOCITIES[15][i] + srcLattice.f16[ind]*D_LATTICE_VELOCITIES[16][i] + srcLattice.f5[ind]*D_LATTICE_VELOCITIES[17][i]
-                    + srcLattice.f18[ind]*D_LATTICE_VELOCITIES[18][i];
+        velocity[i] = d_srcLattice->f0[ind]*D_LATTICE_VELOCITIES[0][i] + d_srcLattice->f1[ind]*D_LATTICE_VELOCITIES[1][i] + d_srcLattice->f2[ind]*D_LATTICE_VELOCITIES[2][i]
+                    + d_srcLattice->f3[ind]*D_LATTICE_VELOCITIES[3][i] + d_srcLattice->f4[ind]*D_LATTICE_VELOCITIES[4][i] + d_srcLattice->f5[ind]*D_LATTICE_VELOCITIES[5][i]
+                    + d_srcLattice->f6[ind]*D_LATTICE_VELOCITIES[6][i] + d_srcLattice->f7[ind]*D_LATTICE_VELOCITIES[7][i] + d_srcLattice->f8[ind]*D_LATTICE_VELOCITIES[8][i]
+                    + d_srcLattice->f9[ind]*D_LATTICE_VELOCITIES[9][i] + d_srcLattice->f10[ind]*D_LATTICE_VELOCITIES[10][i] + d_srcLattice->f11[ind]*D_LATTICE_VELOCITIES[11][i]
+                    + d_srcLattice->f12[ind]*D_LATTICE_VELOCITIES[12][i] + d_srcLattice->f13[ind]*D_LATTICE_VELOCITIES[13][i] + d_srcLattice->f14[ind]*D_LATTICE_VELOCITIES[14][i]
+                    + d_srcLattice->f15[ind]*D_LATTICE_VELOCITIES[15][i] + d_srcLattice->f16[ind]*D_LATTICE_VELOCITIES[16][i] + d_srcLattice->f5[ind]*D_LATTICE_VELOCITIES[17][i]
+                    + d_srcLattice->f18[ind]*D_LATTICE_VELOCITIES[18][i];
     }
 
     // calc the loc equilibrium distro funcs f_qi^eq
@@ -269,25 +295,25 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     }
 
     // calc distro func (f_qi) at new time step + save 19 vals of distro func (f_qi) to curr cell
-    srcLattice.f0[ind] = srcLattice.f0[ind] - (srcLattice.f0[ind] - feq[0])/LBM_TAU;
-    srcLattice.f1[ind] = srcLattice.f1[ind] - (srcLattice.f1[ind] - feq[1])/LBM_TAU;
-    srcLattice.f2[ind] = srcLattice.f2[ind] - (srcLattice.f2[ind] - feq[2])/LBM_TAU;
-    srcLattice.f3[ind] = srcLattice.f3[ind] - (srcLattice.f3[ind] - feq[3])/LBM_TAU;
-    srcLattice.f4[ind] = srcLattice.f4[ind] - (srcLattice.f4[ind] - feq[4])/LBM_TAU;
-    srcLattice.f5[ind] = srcLattice.f5[ind] - (srcLattice.f5[ind] - feq[5])/LBM_TAU;
-    srcLattice.f6[ind] = srcLattice.f6[ind] - (srcLattice.f6[ind] - feq[6])/LBM_TAU;
-    srcLattice.f7[ind] = srcLattice.f7[ind] - (srcLattice.f7[ind] - feq[7])/LBM_TAU;
-    srcLattice.f8[ind] = srcLattice.f8[ind] - (srcLattice.f8[ind] - feq[8])/LBM_TAU;
-    srcLattice.f9[ind] = srcLattice.f9[ind] - (srcLattice.f9[ind] - feq[9])/LBM_TAU;
-    srcLattice.f10[ind] = srcLattice.f10[ind] - (srcLattice.f10[ind] - feq[10])/LBM_TAU;
-    srcLattice.f11[ind] = srcLattice.f11[ind] - (srcLattice.f11[ind] - feq[11])/LBM_TAU;
-    srcLattice.f12[ind] = srcLattice.f12[ind] - (srcLattice.f12[ind] - feq[12])/LBM_TAU;
-    srcLattice.f13[ind] = srcLattice.f13[ind] - (srcLattice.f13[ind] - feq[13])/LBM_TAU;
-    srcLattice.f14[ind] = srcLattice.f14[ind] - (srcLattice.f14[ind] - feq[14])/LBM_TAU;
-    srcLattice.f15[ind] = srcLattice.f15[ind] - (srcLattice.f15[ind] - feq[15])/LBM_TAU;
-    srcLattice.f16[ind] = srcLattice.f16[ind] - (srcLattice.f16[ind] - feq[16])/LBM_TAU;
-    srcLattice.f17[ind] = srcLattice.f17[ind] - (srcLattice.f17[ind] - feq[17])/LBM_TAU;
-    srcLattice.f18[ind] = srcLattice.f18[ind] - (srcLattice.f18[ind] - feq[18])/LBM_TAU;
+    d_srcLattice->f0[ind] = d_srcLattice->f0[ind] - (d_srcLattice->f0[ind] - feq[0])/LBM_TAU;
+    d_srcLattice->f1[ind] = d_srcLattice->f1[ind] - (d_srcLattice->f1[ind] - feq[1])/LBM_TAU;
+    d_srcLattice->f2[ind] = d_srcLattice->f2[ind] - (d_srcLattice->f2[ind] - feq[2])/LBM_TAU;
+    d_srcLattice->f3[ind] = d_srcLattice->f3[ind] - (d_srcLattice->f3[ind] - feq[3])/LBM_TAU;
+    d_srcLattice->f4[ind] = d_srcLattice->f4[ind] - (d_srcLattice->f4[ind] - feq[4])/LBM_TAU;
+    d_srcLattice->f5[ind] = d_srcLattice->f5[ind] - (d_srcLattice->f5[ind] - feq[5])/LBM_TAU;
+    d_srcLattice->f6[ind] = d_srcLattice->f6[ind] - (d_srcLattice->f6[ind] - feq[6])/LBM_TAU;
+    d_srcLattice->f7[ind] = d_srcLattice->f7[ind] - (d_srcLattice->f7[ind] - feq[7])/LBM_TAU;
+    d_srcLattice->f8[ind] = d_srcLattice->f8[ind] - (d_srcLattice->f8[ind] - feq[8])/LBM_TAU;
+    d_srcLattice->f9[ind] = d_srcLattice->f9[ind] - (d_srcLattice->f9[ind] - feq[9])/LBM_TAU;
+    d_srcLattice->f10[ind] = d_srcLattice->f10[ind] - (d_srcLattice->f10[ind] - feq[10])/LBM_TAU;
+    d_srcLattice->f11[ind] = d_srcLattice->f11[ind] - (d_srcLattice->f11[ind] - feq[11])/LBM_TAU;
+    d_srcLattice->f12[ind] = d_srcLattice->f12[ind] - (d_srcLattice->f12[ind] - feq[12])/LBM_TAU;
+    d_srcLattice->f13[ind] = d_srcLattice->f13[ind] - (d_srcLattice->f13[ind] - feq[13])/LBM_TAU;
+    d_srcLattice->f14[ind] = d_srcLattice->f14[ind] - (d_srcLattice->f14[ind] - feq[14])/LBM_TAU;
+    d_srcLattice->f15[ind] = d_srcLattice->f15[ind] - (d_srcLattice->f15[ind] - feq[15])/LBM_TAU;
+    d_srcLattice->f16[ind] = d_srcLattice->f16[ind] - (d_srcLattice->f16[ind] - feq[16])/LBM_TAU;
+    d_srcLattice->f17[ind] = d_srcLattice->f17[ind] - (d_srcLattice->f17[ind] - feq[17])/LBM_TAU;
+    d_srcLattice->f18[ind] = d_srcLattice->f18[ind] - (d_srcLattice->f18[ind] - feq[18])/LBM_TAU;
 }
 
 __global__ void swapGrid(Lattice *d_srcLattice, Lattice *d_destLattice){
@@ -484,11 +510,10 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
 extern void snowUpdateGPU() {
     // dispatch kernels
     // LBM
-    //lbmKernel<<<h_lbmBlockSize, h_lbmGridSize>>>(d_srcLattice, d_destLattice);
-    //printf("%s\n\n\n", cudaGetErrorName(cudaPeekAtLastError()));
-    //cudaDeviceSynchronize();
-    //swapGrid<<<1,1>>>(d_srcLattice, d_destLattice);
-    //cudaDeviceSynchronize();
+    lbmKernel<<<h_lbmBlockSize, h_lbmGridSize>>>(d_srcLattice, d_destLattice);
+    cudaDeviceSynchronize();
+    swapGrid<<<1,1>>>(d_srcLattice, d_destLattice);
+    cudaDeviceSynchronize();
 
     // apply forces to snow
     snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, d_globalState);
@@ -500,6 +525,32 @@ extern void snowUpdateGPU() {
 
     // fetch work
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
+
+    // TODO: del
+    cudaMemcpy(&h_srcLattice, d_srcLattice, sizeof(Lattice), cudaMemcpyDeviceToHost);
+    for (int x = 0; x < 1; x++) {
+        float f0 = h_srcLattice.f0[x];
+        float f1 = h_srcLattice.f1[x];
+        float f2 = h_srcLattice.f2[x];
+        float f3 = h_srcLattice.f3[x];
+        float f4 = h_srcLattice.f4[x];
+        float f5 = h_srcLattice.f5[x];
+        float f6 = h_srcLattice.f6[x];
+        float f7 = h_srcLattice.f7[x];
+        float f8 = h_srcLattice.f8[x];
+        float f9 = h_srcLattice.f9[x];
+        float f10 = h_srcLattice.f10[x];
+        float f11 = h_srcLattice.f11[x];
+        float f12 = h_srcLattice.f12[x];
+        float f13 = h_srcLattice.f13[x];
+        float f14 = h_srcLattice.f14[x];
+        float f15 = h_srcLattice.f15[x];
+        float f16 = h_srcLattice.f16[x];
+        float f17 = h_srcLattice.f17[x];
+        float f18 = h_srcLattice.f18[x];
+        printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
+    }
+    printf("\n\n\n");
 }
 
 /**
