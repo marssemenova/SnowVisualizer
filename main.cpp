@@ -50,10 +50,14 @@ int main() {
     }
 
     // temp input vars (TODO: get from CLI args)
+    // snow
     GLuint numParticles = 1000;
     GLuint whichCam = FIRST_PERSON_CAM;
     GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
     GLfloat temp = -5.0;
+    // wind
+    GLuint latticeRes = 16;
+    GLfloat windVel = 40.0;
 
     // def vars
     float screenW = SCR_WIDTH;
@@ -88,7 +92,7 @@ int main() {
 
     // setup snow gen obj
     GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
-    SnowRenderer snowGen(numParticles, extent, temp);
+    SnowRenderer snowGen(numParticles, extent, temp, EXPERIMENTAL_ALG, windVel, latticeRes);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);

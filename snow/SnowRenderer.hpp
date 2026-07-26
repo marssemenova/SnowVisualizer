@@ -12,6 +12,9 @@
 #include "SnowGenerator.hpp"
 #include "cuda/gpu.hpp"
 
+const float DEFAULT_WIND_VELOCITY = 100;
+const unsigned DEFAULT_LATTICE_RES = 16;
+
 using namespace std;
 
 class SnowRenderer {
@@ -23,6 +26,8 @@ private:
 	SnowGenerator snowGenerator;
 	SnowGeneratorData data;
 	unsigned whichAlg;
+	float windVel;
+	unsigned latticeRes;
 
 	// render params
 	GLuint programID;
@@ -48,9 +53,12 @@ public:
 	 * @param temp - Temperature of the simulation.
 	 * @param whichAlg - Which algorithm to use for the snow particle generation. Either the Moeslund algorithm (1) or the
 	 * experimental algorithm (2). Constants for these are defined in SnowConstants.hpp (MOESLUND_ALG and EXPERIMENTAL_ALG, respectively).
+	 * @param windVel - Macroscopic wind velocity of the wind field.
+	 * @param latticeRes - Lattice resolution used in the LBM for the wind field.
 	 */
-	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp, unsigned whichAlg) : numParticles(numParticles), temp(temp), whichAlg(whichAlg) {
+	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp, unsigned whichAlg, float windVel, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), windVel(windVel), latticeRes(latticeRes) {
 		// set vars
+		// TODO: clamp extent
 		memcpy(extent, extentInp, 6*sizeof(float));
 
 		// create generator
@@ -76,12 +84,12 @@ public:
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @param temp - Temperature of the simulation.
 	 */
-	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp) : SnowRenderer(numParticles, extentInp, temp, EXPERIMENTAL_ALG) {};
+	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp) : SnowRenderer(numParticles, extentInp, temp, EXPERIMENTAL_ALG, DEFAULT_WIND_VELOCITY, DEFAULT_LATTICE_RES) {};
 
 	/**
 	 * Default constructor for SnowRenderer.
 	 */
-	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENT, DEFAULT_TEMP, EXPERIMENTAL_ALG) {};
+	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENT, DEFAULT_TEMP, EXPERIMENTAL_ALG, DEFAULT_WIND_VELOCITY, DEFAULT_LATTICE_RES) {};
 
 	/**
 	 * Setup VAOs.
@@ -96,7 +104,7 @@ public:
 		} else {
 			data = snowGenerator.generateSnowMoeslund(numParticles, extent);
 		}
-		snowInitGPU(data, numParticles, extent);
+		snowInitGPU(data, numParticles, extent, windVel, latticeRes, temp);
 
 		// vertices
 		glGenBuffers(1, &vertBuffer);

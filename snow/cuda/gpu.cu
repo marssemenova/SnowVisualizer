@@ -20,11 +20,10 @@ using namespace std;
 #define SNOW_NOISE_Y 0.1f
 
 #define LBM_Q 19
-#define LBM_C 1.0/sqrt(3.0f) // from speed of sounds = 1/sqrt(3)
-#define LBM_TAU 0.51 // 3 * viscosity - 1/2 // TODO: rem
+#define LBM_C 1.0 // from speed of sounds = 1/sqrt(3)
+#define LBM_C_S 1.0/sqrt(3) // from speed of sounds = 1/sqrt(3)
+#define LBM_TAU 0.55 // 3 * viscosity - 1/2 // TODO: rem
 #define LBM_M_MAX 0.1
-#define LBM_TAU_MAX 1.0
-#define LBM_TAU_MIN 0.5
 __constant__ static const int D_LATTICE_VELOCITIES[19][3] = { {0,0,0},
     {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,1},
     {1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}, {1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1}, {0,1,1}, {0,1,-1},  {0,-1,1},  {0,-1,-1}};
@@ -35,7 +34,7 @@ __constant__ static const float D_LATTICE_WEIGHTS[19] = { 1.0/3.0,
 static const float H_LATTICE_WEIGHTS[19] = { 1.0/3.0, // TODO: see if way to not have 2
     1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0,
     1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0};
-#define Nx 16 // TODO: make adjustable based on extent
+#define Nx 16 // TODO: make adjustable
 #define Ny 16
 #define Nz 16
 struct Lattice {
@@ -95,6 +94,37 @@ curandState *d_globalState;
 Lattice *d_srcLattice;
 Lattice *d_destLattice;
 
+// TODO
+__device__ float applyBoundaryConds(float accessInd, unsigned dim) {
+    if (dim == 0) {
+        if (accessInd < 0) {
+            return Nx - 1;
+        }
+        if (accessInd >= Nx) {
+            return 0;
+        }
+    }
+    if (dim == 1) {
+        if (accessInd < 0) {
+            return Ny - 1;
+        }
+        if (accessInd >= Ny) {
+            return 0;
+        }
+    }
+    if (dim == 2) {
+        if (accessInd < 0) {
+            return Nz - 1;
+        }
+        if (accessInd >= Nz) {
+            return 0;
+        }
+    }
+
+    return accessInd;
+}
+
+// TODO
 __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     // compute the 3D position of the thread
     int x = threadIdx.x;
@@ -130,147 +160,161 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
 */
 
-    // stream 19 pdfs from adjacent cells to curr cell
+    // stream 19 pdfs from adjacent cells to curr cell + apply boundary conds
     int accessX, accessY, accessZ, accessInd; // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: i think boundary is based on accessX/Y/Z n if its out of bounds do smth
     accessX = x-D_LATTICE_VELOCITIES[0][0];
     accessY = y-D_LATTICE_VELOCITIES[0][1];
     accessZ = z-D_LATTICE_VELOCITIES[0][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f0[ind] = d_srcLattice->f0[accessInd]; // TODO: might need to swap, rn dest = stream + src = collide
-    }
+    d_destLattice->f0[ind] = d_srcLattice->f0[accessInd]; // TODO: might need to swap, rn dest = stream + src = collide
     accessX = x-D_LATTICE_VELOCITIES[1][0];
     accessY = y-D_LATTICE_VELOCITIES[1][1];
     accessZ = z-D_LATTICE_VELOCITIES[1][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f1[ind] = d_srcLattice->f1[accessInd];
-    }
+    d_destLattice->f1[ind] = d_srcLattice->f1[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[2][0];
     accessY = y-D_LATTICE_VELOCITIES[2][1];
     accessZ = z-D_LATTICE_VELOCITIES[2][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f2[ind] = d_srcLattice->f2[accessInd];
-    }
+    d_destLattice->f2[ind] = d_srcLattice->f2[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[3][0];
     accessY = y-D_LATTICE_VELOCITIES[3][1];
     accessZ = z-D_LATTICE_VELOCITIES[3][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f3[ind] = d_srcLattice->f3[accessInd];
-    }
+    d_destLattice->f3[ind] = d_srcLattice->f3[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[4][0];
     accessY = y-D_LATTICE_VELOCITIES[4][1];
     accessZ = z-D_LATTICE_VELOCITIES[4][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f4[ind] = d_srcLattice->f4[accessInd];
-    }
+    d_destLattice->f4[ind] = d_srcLattice->f4[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[5][0];
     accessY = y-D_LATTICE_VELOCITIES[5][1];
     accessZ = z-D_LATTICE_VELOCITIES[5][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f5[ind] = d_srcLattice->f5[accessInd];
-    }
+    d_destLattice->f5[ind] = d_srcLattice->f5[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[6][0];
     accessY = y-D_LATTICE_VELOCITIES[6][1];
     accessZ = z-D_LATTICE_VELOCITIES[6][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f6[ind] = d_srcLattice->f6[accessInd];
-    }
+    d_destLattice->f6[ind] = d_srcLattice->f6[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[7][0];
     accessY = y-D_LATTICE_VELOCITIES[7][1];
     accessZ = z-D_LATTICE_VELOCITIES[7][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f7[ind] = d_srcLattice->f7[accessInd];
-    }
+    d_destLattice->f7[ind] = d_srcLattice->f7[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[8][0];
     accessY = y-D_LATTICE_VELOCITIES[8][1];
     accessZ = z-D_LATTICE_VELOCITIES[8][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f8[ind] = d_srcLattice->f8[accessInd];
-    }
+    d_destLattice->f8[ind] = d_srcLattice->f8[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[9][0];
     accessY = y-D_LATTICE_VELOCITIES[9][1];
     accessZ = z-D_LATTICE_VELOCITIES[9][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f9[ind] = d_srcLattice->f9[accessInd];
-    }
+    d_destLattice->f9[ind] = d_srcLattice->f9[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[10][0];
     accessY = y-D_LATTICE_VELOCITIES[10][1];
     accessZ = z-D_LATTICE_VELOCITIES[10][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f10[ind] = d_srcLattice->f10[accessInd];
-    }
+    d_destLattice->f10[ind] = d_srcLattice->f10[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[11][0];
     accessY = y-D_LATTICE_VELOCITIES[11][1];
     accessZ = z-D_LATTICE_VELOCITIES[11][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f11[ind] = d_srcLattice->f11[accessInd];
-    }
+    d_destLattice->f11[ind] = d_srcLattice->f11[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[12][0];
     accessY = y-D_LATTICE_VELOCITIES[12][1];
     accessZ = z-D_LATTICE_VELOCITIES[12][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f12[ind] = d_srcLattice->f12[accessInd];
-    }
+    d_destLattice->f12[ind] = d_srcLattice->f12[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[13][0];
     accessY = y-D_LATTICE_VELOCITIES[13][1];
     accessZ = z-D_LATTICE_VELOCITIES[13][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f13[ind] = d_srcLattice->f13[accessInd];
-    }
+    d_destLattice->f13[ind] = d_srcLattice->f13[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[14][0];
     accessY = y-D_LATTICE_VELOCITIES[14][1];
     accessZ = z-D_LATTICE_VELOCITIES[14][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f14[ind] = d_srcLattice->f14[accessInd];
-    }
+    d_destLattice->f14[ind] = d_srcLattice->f14[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[15][0];
     accessY = y-D_LATTICE_VELOCITIES[15][1];
     accessZ = z-D_LATTICE_VELOCITIES[15][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f15[ind] = d_srcLattice->f15[accessInd];
-    }
+    d_destLattice->f15[ind] = d_srcLattice->f15[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[16][0];
     accessY = y-D_LATTICE_VELOCITIES[16][1];
     accessZ = z-D_LATTICE_VELOCITIES[16][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f16[ind] = d_srcLattice->f16[accessInd];
-    }
+    d_destLattice->f16[ind] = d_srcLattice->f16[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[17][0];
     accessY = y-D_LATTICE_VELOCITIES[17][1];
     accessZ = z-D_LATTICE_VELOCITIES[17][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f17[ind] = d_srcLattice->f17[accessInd];
-    }
+    d_destLattice->f17[ind] = d_srcLattice->f17[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[18][0];
     accessY = y-D_LATTICE_VELOCITIES[18][1];
     accessZ = z-D_LATTICE_VELOCITIES[18][2];
+    accessX = applyBoundaryConds(accessX, 0);
+    accessY = applyBoundaryConds(accessY, 1);
+    accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    if (0 <= accessX && accessX < Nx && 0 <= accessY && accessY < Ny && 0 <= accessZ && accessZ < Nz) {
-        d_destLattice->f18[ind] = d_srcLattice->f18[accessInd];
-    }
+    d_destLattice->f18[ind] = d_srcLattice->f18[accessInd];
 
-
-    // apply boundary conds
-    // TODO: ?????
-
-   // float *currCell = &d_srcGrid[LBM_Q*ind];
     // calc density (rho)
     float density = d_destLattice->f0[ind] + d_destLattice->f1[ind] + d_destLattice->f2[ind] + d_destLattice->f3[ind]
                     + d_destLattice->f4[ind] + d_destLattice->f5[ind] + d_destLattice->f6[ind]
@@ -302,8 +346,29 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
         feq[i] = D_LATTICE_WEIGHTS[i]*density*(1 + (3.0/pow(LBM_C,2))*t1 + (9.0/(2.0*pow(LBM_C,4)))*t2 - (3.0/(2.0*pow(LBM_C,4)))*t3);
     }
 
+    float f0 = d_destLattice->f0[ind];
+    float f1 = d_destLattice->f1[ind];
+    float f2 = d_destLattice->f2[ind];
+    float f3 = d_destLattice->f3[ind];
+    float f4 = d_destLattice->f4[ind];
+    float f5 = d_destLattice->f5[ind];
+    float f6 = d_destLattice->f6[ind];
+    float f7 = d_destLattice->f7[ind];
+    float f8 = d_destLattice->f8[ind];
+    float f9 = d_destLattice->f9[ind];
+    float f10 = d_destLattice->f10[ind];
+    float f11 = d_destLattice->f11[ind];
+    float f12 = d_destLattice->f12[ind];
+    float f13 = d_destLattice->f13[ind];
+    float f14 = d_destLattice->f14[ind];
+    float f15 = d_destLattice->f15[ind];
+    float f16 = d_destLattice->f16[ind];
+    float f17 = d_destLattice->f17[ind];
+    float f18 = d_destLattice->f18[ind];
+
+//    printf("%d %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n\n", ind, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
     // calc distro func (f_qi) at new time step + save 19 vals of distro func (f_qi) to curr cell
-    d_destLattice->f0[ind] = d_destLattice->f0[ind] - (d_destLattice->f0[ind] - feq[0])/LBM_TAU;
+    d_destLattice->f0[ind] = d_destLattice->f0[ind] - (d_destLattice->f0[ind] - feq[0])/LBM_TAU; // TODO: make loc arr of 19 els + load ptrs so its coalesced reads/writes
     d_destLattice->f1[ind] = d_destLattice->f1[ind] - (d_destLattice->f1[ind] - feq[1])/LBM_TAU;
     d_destLattice->f2[ind] = d_destLattice->f2[ind] - (d_destLattice->f2[ind] - feq[2])/LBM_TAU;
     d_destLattice->f3[ind] = d_destLattice->f3[ind] - (d_destLattice->f3[ind] - feq[3])/LBM_TAU;
@@ -322,6 +387,28 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     d_destLattice->f16[ind] = d_destLattice->f16[ind] - (d_destLattice->f16[ind] - feq[16])/LBM_TAU;
     d_destLattice->f17[ind] = d_destLattice->f17[ind] - (d_destLattice->f17[ind] - feq[17])/LBM_TAU;
     d_destLattice->f18[ind] = d_destLattice->f18[ind] - (d_destLattice->f18[ind] - feq[18])/LBM_TAU;
+     f0 = d_destLattice->f0[ind];
+     f1 = d_destLattice->f1[ind];
+     f2 = d_destLattice->f2[ind];
+     f3 = d_destLattice->f3[ind];
+     f4 = d_destLattice->f4[ind];
+     f5 = d_destLattice->f5[ind];
+     f6 = d_destLattice->f6[ind];
+     f7 = d_destLattice->f7[ind];
+     f8 = d_destLattice->f8[ind];
+     f9 = d_destLattice->f9[ind];
+     f10 = d_destLattice->f10[ind];
+     f11 = d_destLattice->f11[ind];
+     f12 = d_destLattice->f12[ind];
+     f13 = d_destLattice->f13[ind];
+     f14 = d_destLattice->f14[ind];
+     f15 = d_destLattice->f15[ind];
+     f16 = d_destLattice->f16[ind];
+     f17 = d_destLattice->f17[ind];
+     f18 = d_destLattice->f18[ind];
+     // printf(">>>>>>>>>>>>>>>>%d %f\n\n", ind, (d_destLattice->f0[ind] - (d_destLattice->f0[ind] - feq[0])/LBM_TAU));
+     // printf("> %d %f\n\n", ind, f0);
+     //printf("> %d %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n\n", ind, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
 }
 
 __global__ void swapGrid(Lattice *d_srcLattice, Lattice *d_destLattice){
@@ -413,12 +500,14 @@ __global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_num
 }
 
 // TODO
-bool isModelValid(float h_Re, float h_tau) {
-    // TODO also enforce tau min/max https://dbarker.uk/posts/lbm-parameterization/
-    float nu = (h_tau - 0.5) / 3;
-    float u = h_Re * nu / (Nx-1);
-    float eps = 1e-8;
-    return (u - eps <= (LBM_M_MAX / sqrt(3))) && (u - eps <= 24 * nu);
+bool isModelValid(float h_extent[3][2], float h_windVel, float h_latticeRes, float h_temp) {
+    float h_viscosity_phys = 0.000012890; // m^2/s from temp (-5) (https://theengineeringmindset.com/properties-of-air-at-atmospheric-pressure/)
+    float h_cs_phys =  328.25; // m/s from temp (-5) (https://en.wikipedia.org/wiki/Speed_of_sound)
+    float h_delta_x_phys = abs(h_extent[0][1]-h_extent[0][0])/h_latticeRes;
+    float h_delta_t_phys = (LBM_C_S/h_cs_phys)*h_delta_x_phys;
+    float h_tau = 3*(h_viscosity_phys*(h_delta_t_phys/pow(h_delta_x_phys, 2)))+1.0/2;
+    printf("%f %f %f\n", h_delta_x_phys, h_delta_t_phys, h_tau);
+    return false;
 }
 
 /**
@@ -429,12 +518,9 @@ bool isModelValid(float h_Re, float h_tau) {
  * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
  * parameter has no effect and the snow particle is generated at the origin.
  */
-extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float extent[3][2]) {
+extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float extent[3][2], float windVel, unsigned latticeRes, float temp) {
     // validate model
-    float viscosity = 3; // TODO: make param
-    float h_Re = 3; // TODO
-    float h_tau = 3.0 * viscosity/((extent[1]-extent[0])/(Nx-1)) + 1/2; // 3 * (v delta t/(delta x ^2))+1/2
-    if (!isModelValid(h_Re, h_tau)) {
+    if (!isModelValid(extent, windVel, latticeRes, temp)) { // TODO
         printf("Invalid model parameters\n");
         // exit(-1); TODO
     }
@@ -536,18 +622,21 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
 extern void snowUpdateGPU() {
     // dispatch kernels
     // LBM
-    lbmKernel<<<h_lbmBlockSize, h_lbmGridSize>>>(d_srcLattice, d_destLattice);
+    lbmKernel<<<h_lbmGridSize, h_lbmBlockSize>>>(d_srcLattice, d_destLattice);
     cudaDeviceSynchronize();
-    swapGrid<<<1,1>>>(d_srcLattice, d_destLattice);
-    cudaDeviceSynchronize();
+    //swapGrid<<<1,1>>>(d_srcLattice, d_destLattice);
+    Lattice *swap = d_srcLattice;
+    d_srcLattice = d_destLattice;
+    d_destLattice = swap;
+   // cudaDeviceSynchronize();
 
     // apply forces to snow
     snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, d_globalState);
-    cudaDeviceSynchronize();
+    //cudaDeviceSynchronize();
 
     // update snow verts
     snowUpdate<<<h_snowUpdateNumBlocks,SNOW_UPDATE_BLOCK_SIZE>>>(d_verts, d_snowOffsets, d_numParticles);
-    cudaDeviceSynchronize();
+   // cudaDeviceSynchronize();
 
     // fetch work
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
@@ -555,28 +644,9 @@ extern void snowUpdateGPU() {
     // TODO: del
     cudaMemcpy(&h_destLattice, d_destLattice, sizeof(Lattice), cudaMemcpyDeviceToHost);
     for (int x = 0; x < 1; x++) {
-        float f0 = h_destLattice.f0[x];
         float f1 = h_destLattice.f1[x];
-        float f2 = h_destLattice.f2[x];
-        float f3 = h_destLattice.f3[x];
-        float f4 = h_destLattice.f4[x];
-        float f5 = h_destLattice.f5[x];
-        float f6 = h_destLattice.f6[x];
-        float f7 = h_destLattice.f7[x];
-        float f8 = h_destLattice.f8[x];
-        float f9 = h_destLattice.f9[x];
-        float f10 = h_destLattice.f10[x];
-        float f11 = h_destLattice.f11[x];
-        float f12 = h_destLattice.f12[x];
-        float f13 = h_destLattice.f13[x];
-        float f14 = h_destLattice.f14[x];
-        float f15 = h_destLattice.f15[x];
-        float f16 = h_destLattice.f16[x];
-        float f17 = h_destLattice.f17[x];
-        float f18 = h_destLattice.f18[x];
-        printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
+        printf("%f\n", f1);
     }
-    printf("\n\n\n");
 }
 
 /**
