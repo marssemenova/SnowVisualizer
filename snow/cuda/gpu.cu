@@ -473,17 +473,60 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
     unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
     unsigned stride = SNOW_GRAV_BLOCK_SIZE;
 
-    // translate x y z into a lattice point
-    int x = d_snowflakeDataFlat[3*x];
-    int y = d_snowflakeDataFlat[3*x+1];
-    int z = d_snowflakeDataFlat[3*x+2];
-    // TODO
-
     // apply forces to snowflakes
     float xOffset, yOffset, zOffset;
     float yOffsetRand;
     curandState localState;
+    float x_phys, y_phys, z_phys, x_lat, y_lat, z_lat;
+    float dx, dy, dz;
+    float u, u_x0, u_x1, u_x2, u_x3, u_x4, u_x5, u_x6, u_x7;
+    int x_lat_int, y_lat_int, z_lat_int;
+    int x0[3], x1[3], x2[3], x3[3], x4[3], x5[3], x6[3], x7[3];
     for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
+        // translate x y z into a lattice point
+        x_phys = d_snowflakeDataFlat[3*x];
+        y_phys = d_snowflakeDataFlat[3*x+1];
+        z_phys = d_snowflakeDataFlat[3*x+2];
+        x_lat = x_phys; // TODO
+        y_lat = y_phys; // TODO
+        z_lat = z_phys; // TODO
+        x_lat_int = (int) x_lat;
+        y_lat_int = (int) y_lat;
+        z_lat_int = (int) z_lat;
+        if (x_lat != x_lat_int || y_lat != y_lat_int || z_lat != z_lat_int) { // interpolation
+            x_lat_int = (int) x_lat;
+            y_lat_int = (int) y_lat;
+            z_lat_int = (int) z_lat;
+            x0[0] = x_lat, x0[1] = y_lat, x0[2] = z_lat; // TODO: closest or furthest?
+            x1[0] = x_lat, x1[1] = y_lat, x1[2] = z_lat; // TODO
+            x2[0] = x_lat, x2[1] = y_lat, x2[2] = z_lat; // TODO
+            x3[0] = x_lat, x3[1] = y_lat, x3[2] = z_lat; // TODO
+            x4[0] = x_lat, x4[1] = y_lat, x4[2] = z_lat; // TODO
+            x5[0] = x_lat, x5[1] = y_lat, x5[2] = z_lat; // TODO
+            x6[0] = x_lat, x6[1] = y_lat, x6[2] = z_lat; // TODO
+            x7[0] = x_lat, x7[1] = y_lat, x7[2] = z_lat; // TODO
+            dx = x_lat-x0[0];
+            dy = y_lat-x0[1];
+            dz = z_lat-x0[2];
+            u_x0 = 0; // TODO
+            u_x1 = 0; // TODO
+            u_x2 = 0; // TODO
+            u_x3 = 0; // TODO
+            u_x4 = 0; // TODO
+            u_x5 = 0; // TODO
+            u_x6 = 0; // TODO
+            u_x7 = 0; // TODO
+            u = (1-dx)*(1-dy)*(1-dz)*u_x0
+                + (1-dx)*(1-dy)*dz*u_x1
+                + (1-dx)*dy*(1-dz)*u_x2
+                + dx*(1-dy)*(1-dz)*u_x3
+                + (1-dx)*dy*dz*u_x4
+                + dx*(1-dy)*dz*u_x5
+                + dx*dy*(1-dz)*u_x6
+                + dx*dy*dz*u_x7;
+        }
+        // TODO
+
         if (d_snowflakeDataFlat[3*x+1] < d_extent[2]) {
             localState = d_globalState[kernelInd];
             xOffset = getRandFloatGPU(d_extent[0], d_extent[1], &localState) - d_snowflakeDataFlat[3*x];
