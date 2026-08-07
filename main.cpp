@@ -56,7 +56,7 @@ int main() {
     GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
     GLfloat temp = -5.0;
     // wind
-    GLuint latticeRes = 16;
+    GLuint latticeRes = 256;
     GLfloat windVel = 40.0;
 
     // def vars

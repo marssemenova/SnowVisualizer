@@ -34,9 +34,9 @@ __constant__ static const float D_LATTICE_WEIGHTS[19] = { 1.0/3.0,
 static const float H_LATTICE_WEIGHTS[19] = { 1.0/3.0, // TODO: see if way to not have 2
     1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0, 1.0/18.0,
     1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0};
-#define Nx 16 // TODO: make adjustable
-#define Ny 16
-#define Nz 16
+#define Nx 5 // TODO: make adjustable
+#define Ny 5
+#define Nz 5
 struct Lattice {
     float f0[Nx*Ny*Nz];
     float f1[Nx*Ny*Nz];
@@ -83,8 +83,6 @@ Lattice h_destLattice; // TODO: del
 
 // dev vars
 __constant__ __device__ float d_extent[6];
-__constant__ __device__ float d_Re;
-__constant__ __device__ float d_L;
 __constant__ __device__ float d_tau;
 float *d_verts;
 float *d_snowflakeDataFlat;
@@ -134,34 +132,36 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     int ind = x + y * Nx + z * Nx*Ny;
 
 
-    if (!(ind < Nx*Ny*Nz)) { // TODO: ref
+    if (!(ind < Nx*Ny*Nz)) { // TODO: refactor
         return;
     }
-/*
-    float f0 = d_srcLattice->f0[ind];
-    float f1 = d_srcLattice->f1[ind];
-    float f2 = d_srcLattice->f2[ind];
-    float f3 = d_srcLattice->f3[ind];
-    float f4 = d_srcLattice->f4[ind];
-    float f5 = d_srcLattice->f5[ind];
-    float f6 = d_srcLattice->f6[ind];
-    float f7 = d_srcLattice->f7[ind];
-    float f8 = d_srcLattice->f8[ind];
-    float f9 = d_srcLattice->f9[ind];
-    float f10 = d_srcLattice->f10[ind];
-    float f11 = d_srcLattice->f11[ind];
-    float f12 = d_srcLattice->f12[ind];
-    float f13 = d_srcLattice->f13[ind];
-    float f14 = d_srcLattice->f14[ind];
-    float f15 = d_srcLattice->f15[ind];
-    float f16 = d_srcLattice->f16[ind];
-    float f17 = d_srcLattice->f17[ind];
-    float f18 = d_srcLattice->f18[ind];
-    printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
-*/
+
+    float f0 = d_destLattice->f0[ind];
+    float f1 = d_destLattice->f1[ind];
+    float f2 = d_destLattice->f2[ind];
+    float f3 = d_destLattice->f3[ind];
+    float f4 = d_destLattice->f4[ind];
+    float f5 = d_destLattice->f5[ind];
+    float f6 = d_destLattice->f6[ind];
+    float f7 = d_destLattice->f7[ind];
+    float f8 = d_destLattice->f8[ind];
+    float f9 = d_destLattice->f9[ind];
+    float f10 = d_destLattice->f10[ind];
+    float f11 = d_destLattice->f11[ind];
+    float f12 = d_destLattice->f12[ind];
+    float f13 = d_destLattice->f13[ind];
+    float f14 = d_destLattice->f14[ind];
+    float f15 = d_destLattice->f15[ind];
+    float f16 = d_destLattice->f16[ind];
+    float f17 = d_destLattice->f17[ind];
+    float f18 = d_destLattice->f18[ind];
+    if (ind == 5) {
+        //printf("+ %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
+    }
+
 
     // stream 19 pdfs from adjacent cells to curr cell + apply boundary conds
-    int accessX, accessY, accessZ, accessInd; // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: i think boundary is based on accessX/Y/Z n if its out of bounds do smth
+    int accessX, accessY, accessZ, accessInd;
     accessX = x-D_LATTICE_VELOCITIES[0][0];
     accessY = y-D_LATTICE_VELOCITIES[0][1];
     accessZ = z-D_LATTICE_VELOCITIES[0][2];
@@ -169,7 +169,7 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     accessY = applyBoundaryConds(accessY, 1);
     accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
-    d_destLattice->f0[ind] = d_srcLattice->f0[accessInd]; // TODO: might need to swap, rn dest = stream + src = collide
+    d_destLattice->f0[ind] = d_srcLattice->f0[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[1][0];
     accessY = y-D_LATTICE_VELOCITIES[1][1];
     accessZ = z-D_LATTICE_VELOCITIES[1][2];
@@ -177,6 +177,7 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     accessY = applyBoundaryConds(accessY, 1);
     accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
+    int test = accessInd; // TODO: rem
     d_destLattice->f1[ind] = d_srcLattice->f1[accessInd];
     accessX = x-D_LATTICE_VELOCITIES[2][0];
     accessY = y-D_LATTICE_VELOCITIES[2][1];
@@ -314,17 +315,29 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     accessZ = applyBoundaryConds(accessZ, 2);
     accessInd = accessX + accessY * Nx + accessZ * Nx*Ny;
     d_destLattice->f18[ind] = d_srcLattice->f18[accessInd];
-
+    __syncthreads();
+    if (ind ==120){
+        printf("0\n");
+        printf("test %f\n", d_srcLattice->f1[test]);
+        for (int x = 0; x < 25; x+=1) {
+            for (int y = 0; y < 5; y++) {
+                f1 = d_destLattice->f1[5*x + y];
+                printf("%f ", f1);
+            }
+            printf("\n");
+        }
+        printf("\n\n\n\n");
+    }
     // calc density (rho)
     float density = d_destLattice->f0[ind] + d_destLattice->f1[ind] + d_destLattice->f2[ind] + d_destLattice->f3[ind]
                     + d_destLattice->f4[ind] + d_destLattice->f5[ind] + d_destLattice->f6[ind]
                     + d_destLattice->f7[ind] + d_destLattice->f8[ind] + d_destLattice->f9[ind]
                     + d_destLattice->f10[ind] + d_destLattice->f11[ind] + d_destLattice->f12[ind]
                     + d_destLattice->f13[ind] + d_destLattice->f14[ind] + d_destLattice->f15[ind]
-                    + d_destLattice->f16[ind] + d_destLattice->f17[ind] + d_destLattice->f18[ind];
+                    + d_destLattice->f16[ind] + d_destLattice->f17[ind] + d_destLattice->f18[ind]; // TODO: should be preinitialized?
 
     // calc velocity (u)
-    float velocity[3];
+    float velocity[3]; // TODO: should be preinitialized?
     for (int i = 0; i < 3; i++) {
         velocity[i] = d_destLattice->f0[ind]*D_LATTICE_VELOCITIES[0][i] + d_destLattice->f1[ind]*D_LATTICE_VELOCITIES[1][i] + d_destLattice->f2[ind]*D_LATTICE_VELOCITIES[2][i]
                     + d_destLattice->f3[ind]*D_LATTICE_VELOCITIES[3][i] + d_destLattice->f4[ind]*D_LATTICE_VELOCITIES[4][i] + d_destLattice->f5[ind]*D_LATTICE_VELOCITIES[5][i]
@@ -337,37 +350,39 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
     }
 
     // calc the loc equilibrium distro funcs f_qi^eq
-    float feq[LBM_Q];
-    float t1, t2, t3;
+    float feq[LBM_Q]; // TODO: should be preinitialized?
+    float t1, t2, t3; // TODO: should be preinitialized?
     t3 = velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2];
     for (int i = 0; i < LBM_Q; i++) {
         t1 = D_LATTICE_VELOCITIES[i][0]*velocity[0] + D_LATTICE_VELOCITIES[i][1]*velocity[1] + D_LATTICE_VELOCITIES[i][2]*velocity[2];
         t2 = t1*t1;
-        feq[i] = D_LATTICE_WEIGHTS[i]*density*(1 + (3.0/pow(LBM_C,2))*t1 + (9.0/(2.0*pow(LBM_C,4)))*t2 - (3.0/(2.0*pow(LBM_C,4)))*t3);
+        feq[i] = D_LATTICE_WEIGHTS[i]*density*(1 + (3.0/LBM_C)*t1 + (9.0/(2.0*pow(LBM_C,2)))*t2 - (3.0/(2.0*pow(LBM_C,2)))*t3);
     }
 
-    float f0 = d_destLattice->f0[ind];
-    float f1 = d_destLattice->f1[ind];
-    float f2 = d_destLattice->f2[ind];
-    float f3 = d_destLattice->f3[ind];
-    float f4 = d_destLattice->f4[ind];
-    float f5 = d_destLattice->f5[ind];
-    float f6 = d_destLattice->f6[ind];
-    float f7 = d_destLattice->f7[ind];
-    float f8 = d_destLattice->f8[ind];
-    float f9 = d_destLattice->f9[ind];
-    float f10 = d_destLattice->f10[ind];
-    float f11 = d_destLattice->f11[ind];
-    float f12 = d_destLattice->f12[ind];
-    float f13 = d_destLattice->f13[ind];
-    float f14 = d_destLattice->f14[ind];
-    float f15 = d_destLattice->f15[ind];
-    float f16 = d_destLattice->f16[ind];
-    float f17 = d_destLattice->f17[ind];
-    float f18 = d_destLattice->f18[ind];
-
-//    printf("%d %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n\n", ind, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
-    // calc distro func (f_qi) at new time step + save 19 vals of distro func (f_qi) to curr cell
+    f0 = d_destLattice->f0[ind];
+     f1 = d_destLattice->f1[ind];
+     f2 = d_destLattice->f2[ind];
+     f3 = d_destLattice->f3[ind];
+     f4 = d_destLattice->f4[ind];
+     f5 = d_destLattice->f5[ind];
+     f6 = d_destLattice->f6[ind];
+     f7 = d_destLattice->f7[ind];
+     f8 = d_destLattice->f8[ind];
+     f9 = d_destLattice->f9[ind];
+     f10 = d_destLattice->f10[ind];
+     f11 = d_destLattice->f11[ind];
+     f12 = d_destLattice->f12[ind];
+     f13 = d_destLattice->f13[ind];
+     f14 = d_destLattice->f14[ind];
+     f15 = d_destLattice->f15[ind];
+     f16 = d_destLattice->f16[ind];
+     f17 = d_destLattice->f17[ind];
+     f18 = d_destLattice->f18[ind];
+    if (ind == 120) {
+        printf("ruh new %f old %f minus %f feq %f\n\n\n", d_destLattice->f1[ind] - (d_destLattice->f1[ind] - feq[1])/LBM_TAU, d_destLattice->f1[ind], (d_destLattice->f1[ind] - feq[1])/LBM_TAU, feq[1]); // -0.02487272727
+        //printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
+    }
+// calc distro func (f_qi) at new time step + save 19 vals of distro func (f_qi) to curr cell
     d_destLattice->f0[ind] = d_destLattice->f0[ind] - (d_destLattice->f0[ind] - feq[0])/LBM_TAU; // TODO: make loc arr of 19 els + load ptrs so its coalesced reads/writes
     d_destLattice->f1[ind] = d_destLattice->f1[ind] - (d_destLattice->f1[ind] - feq[1])/LBM_TAU;
     d_destLattice->f2[ind] = d_destLattice->f2[ind] - (d_destLattice->f2[ind] - feq[2])/LBM_TAU;
@@ -406,15 +421,24 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice) {
      f16 = d_destLattice->f16[ind];
      f17 = d_destLattice->f17[ind];
      f18 = d_destLattice->f18[ind];
-     // printf(">>>>>>>>>>>>>>>>%d %f\n\n", ind, (d_destLattice->f0[ind] - (d_destLattice->f0[ind] - feq[0])/LBM_TAU));
-     // printf("> %d %f\n\n", ind, f0);
-     //printf("> %d %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n\n", ind, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
-}
+      if (ind == 120) {
+         // printf(">>>>>>>>>>>>>>>>%d %f\n\n", ind, (d_destLattice->f0[ind] - (d_destLattice->f0[ind] - feq[0])/LBM_TAU));
+         // printf("> %d %f\n\n", ind, f0);
+         //printf("> %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n\n", f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18);
+        }
 
-__global__ void swapGrid(Lattice *d_srcLattice, Lattice *d_destLattice){
-    Lattice *swap = d_srcLattice;
-    d_srcLattice = d_destLattice;
-    d_destLattice = swap;
+    if (ind == 120) {
+        printf("1\n");
+        for (int x = 0; x < 25; x+=1) {
+            for (int y = 0; y < 5; y++) {
+                f1 = d_destLattice->f1[5*x + y];
+                printf("%f ", f1);
+            }
+            printf("\n");
+        }
+        printf("\n\n\n\n");
+    }
+
 }
 
 /**
@@ -448,6 +472,14 @@ __device__ __forceinline__ float getRandFloatGPU(float min, float max, curandSta
 __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets, curandState* d_globalState) {
     unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
     unsigned stride = SNOW_GRAV_BLOCK_SIZE;
+
+    // translate x y z into a lattice point
+    int x = d_snowflakeDataFlat[3*x];
+    int y = d_snowflakeDataFlat[3*x+1];
+    int z = d_snowflakeDataFlat[3*x+2];
+    // TODO
+
+    // apply forces to snowflakes
     float xOffset, yOffset, zOffset;
     float yOffsetRand;
     curandState localState;
@@ -624,29 +656,31 @@ extern void snowUpdateGPU() {
     // LBM
     lbmKernel<<<h_lbmGridSize, h_lbmBlockSize>>>(d_srcLattice, d_destLattice);
     cudaDeviceSynchronize();
-    //swapGrid<<<1,1>>>(d_srcLattice, d_destLattice);
+
+    // swap grids
     Lattice *swap = d_srcLattice;
     d_srcLattice = d_destLattice;
     d_destLattice = swap;
-   // cudaDeviceSynchronize();
 
     // apply forces to snow
     snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, d_globalState);
-    //cudaDeviceSynchronize();
 
     // update snow verts
     snowUpdate<<<h_snowUpdateNumBlocks,SNOW_UPDATE_BLOCK_SIZE>>>(d_verts, d_snowOffsets, d_numParticles);
-   // cudaDeviceSynchronize();
 
     // fetch work
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
 
     // TODO: del
     cudaMemcpy(&h_destLattice, d_destLattice, sizeof(Lattice), cudaMemcpyDeviceToHost);
-    for (int x = 0; x < 1; x++) {
-        float f1 = h_destLattice.f1[x];
-        printf("%f\n", f1);
+    for (int x = 0; x < 25; x+=1) {
+        for (int y = 0; y < 5; y++) {
+            float f1 = h_destLattice.f1[5*x + y];
+           // printf("%f ", f1);
+        }
+        //printf("\n");
     }
+    //printf("\n\n\n\n");
 }
 
 /**
