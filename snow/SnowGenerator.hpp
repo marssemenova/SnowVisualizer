@@ -47,14 +47,14 @@ private:
 	/**
 	 * Helper function which generates snow using the specified algorithm
 	 * @param numParticles - Number of particles to generate.
-	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
-	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
+	 * @param extents - Extents of volume in which to generate the particles, where extents[0] is a pair for the x extent,
+	 * extents[1] is a pair for the y extent, and extents[2] is a pair for the z extent. If numParticles = 1 this
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @param alg - Which algorithm to use for the snow particle generation. Either the Moeslund algorithm (1) or the
 	 * experimental algorithm (2). Constants for these are defined in SnowConstants.hpp (MOESLUND_ALG and EXPERIMENTAL_ALG, respectively).
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
-	SnowGeneratorData generateSnow(unsigned numParticles, const float extent[3][2], unsigned alg) {
+	SnowGeneratorData generateSnow(unsigned numParticles, const float extents[3][2], unsigned alg) {
 		SnowGeneratorData data;
 		float xPos, yPos, zPos;
 		if (numParticles == 1) {
@@ -63,9 +63,9 @@ private:
 			} else {
 				data = generateSnowOnceExperimental();
 			}
-			xPos = getRandFloat(extent[0][0], extent[0][1]);
-			yPos = getRandFloat(extent[1][0], extent[1][1]);
-			zPos = getRandFloat(extent[2][0], extent[2][1]);
+			xPos = getRandFloat(extents[0][0], extents[0][1]);
+			yPos = getRandFloat(extents[1][0], extents[1][1]);
+			zPos = getRandFloat(extents[2][0], extents[2][1]);
 			data.snowflakeData[0].pos[0] = xPos;
 			data.snowflakeData[0].pos[1] = yPos;
 			data.snowflakeData[0].pos[2] = zPos;
@@ -75,9 +75,9 @@ private:
 		data.snowflakeData = (SnowflakeData*) mallocGPU(numParticles*sizeof(SnowflakeData));
 		unsigned numEntries = 0;
 		for (int x = 0; x < numParticles; x++) {
-			xPos = getRandFloat(extent[0][0], extent[0][1]);
-			yPos = getRandFloat(extent[1][0], extent[1][1]);
-			zPos = getRandFloat(extent[2][0], extent[2][1]);
+			xPos = getRandFloat(extents[0][0], extents[0][1]);
+			yPos = getRandFloat(extents[1][0], extents[1][1]);
+			zPos = getRandFloat(extents[2][0], extents[2][1]);
 			data.snowflakeData[x].pos[0] = xPos;
 			data.snowflakeData[x].pos[1] = yPos;
 			data.snowflakeData[x].pos[2] = zPos;
@@ -409,25 +409,25 @@ public:
 	/**
 	 * Generates snow using the default algorithm (Experimental).
 	 * @param numParticles - Number of particles to generate.
-	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
-	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
+	 * @param extents - Extents of volume in which to generate the particles, where extents[0] is a pair for the x extent,
+	 * extents[1] is a pair for the y extent, and extents[2] is a pair for the z extent. If numParticles = 1 this
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
-	SnowGeneratorData generateSnow(unsigned numParticles, const float extent[3][2]) {
-		return generateSnowExperimental(numParticles, extent);
+	SnowGeneratorData generateSnow(unsigned numParticles, const float extents[3][2]) {
+		return generateSnowExperimental(numParticles, extents);
 	}
 
 	/**
 	 * Generates snow using the Moeslund algorithm.
 	 * @param numParticles - Number of particles to generate.
-	 * @param extent - Extent of volume in which to generate the particles, where extent[0] is a pair for the x extent,
-	 * extent[1] is a pair for the y extent, and extent[2] is a pair for the z extent. If numParticles = 1 this
+	 * @param extents - Extents of volume in which to generate the particles, where extents[0] is a pair for the x extent,
+	 * extents[1] is a pair for the y extent, and extents[2] is a pair for the z extent. If numParticles = 1 this
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @return A SnowGeneratorData object with the generated data for the snowflake(s).
 	 */
-	SnowGeneratorData generateSnowMoeslund(unsigned numParticles, const float extent[3][2]) {
-		return generateSnow(numParticles, extent, MOESLUND_ALG);
+	SnowGeneratorData generateSnowMoeslund(unsigned numParticles, const float extents[3][2]) {
+		return generateSnow(numParticles, extents, MOESLUND_ALG);
 	}
 
 	/**

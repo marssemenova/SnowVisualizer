@@ -45,7 +45,7 @@ of these would be merged but due to time and the complexity of trigonometry this
 
 The API is implemented in `/snow/SnowGenerator.hpp`, and `/snow/SnowRenderer.hpp` shows an example of using the API. Relevant constants are
 defined in `/snow/SnowConstants.hpp`. The API works by instantiating a `SnowGenerator` object with a given temperature which then enables
-a user to call an assortment of methods to generate snow by specifying the number of particles to generate and the extent of
+a user to call an assortment of methods to generate snow by specifying the number of particles to generate and the extents of
 the volume within which snow is generated. The algorithm used to generate the snow is chosen by calling the method for the
 desired algorithm. The simple Phong shaders used for the snow are `/cmake-build-debug/shaders/PhongVertexShader.vertexshader`
 and `/cmake-build-debug/shaders/PhongFragmentShader.fragmentshader`. The runner is `main.cpp`.

@@ -22,7 +22,7 @@ private:
 	// params
 	unsigned numParticles;
 	float temp; // C
-	float extent[3][2]; // x range, y range, z range
+	float extents[3][2]; // x range, y range, z range
 	SnowGenerator snowGenerator;
 	SnowGeneratorData data;
 	unsigned whichAlg;
@@ -47,8 +47,8 @@ public:
 	/**
 	 * Constructor for SnowRenderer.
 	 * @param numParticles - Number of snow particles to generate.
-	 * @param extentInp - Extent of volume in which to generate the particles, where extentInp[0] is a pair for the x extent,
-	 * extentInp[1] is a pair for the y extent, and extentInp[2] is a pair for the z extent. If numParticles = 1 this
+	 * @param extentsInp - Extents of volume in which to generate the particles, where extentsInp[0] is a pair for the x extent,
+	 * extentsInp[1] is a pair for the y extent, and extentsInp[2] is a pair for the z extent. If numParticles = 1 this
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @param temp - Temperature of the simulation.
 	 * @param whichAlg - Which algorithm to use for the snow particle generation. Either the Moeslund algorithm (1) or the
@@ -56,10 +56,10 @@ public:
 	 * @param windVel - Macroscopic wind velocity of the wind field.
 	 * @param latticeRes - Lattice resolution used in the LBM for the wind field.
 	 */
-	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp, unsigned whichAlg, float windVel, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), windVel(windVel), latticeRes(latticeRes) {
+	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp, unsigned whichAlg, float windVel, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), windVel(windVel), latticeRes(latticeRes) {
 		// set vars
-		// TODO: clamp extent
-		memcpy(extent, extentInp, 6*sizeof(float));
+		// TODO: clamp extents
+		memcpy(extents, extentsInp, 6*sizeof(float));
 
 		// create generator
 		snowGenerator = SnowGenerator(temp);
@@ -79,17 +79,17 @@ public:
 	/**
 	 * Constructor for SnowRenderer with the default algorithm (EXPERIMENTAL_ALG).
 	 * @param numParticles - Number of snow particles to generate.
-	 * @param extentInp - Extent of volume in which to generate the particles, where extentInp[0] is a pair for the x extent,
-	 * extentInp[1] is a pair for the y extent, and extentInp[2] is a pair for the z extent. If numParticles = 1 this
+	 * @param extentsInp - Extents of volume in which to generate the particles, where extentsInp[0] is a pair for the x extent,
+	 * extentsInp[1] is a pair for the y extent, and extentsInp[2] is a pair for the z extent. If numParticles = 1 this
 	 * parameter has no effect and the snow particle is generated at the origin.
 	 * @param temp - Temperature of the simulation.
 	 */
-	SnowRenderer(unsigned numParticles, const float extentInp[3][2], float temp) : SnowRenderer(numParticles, extentInp, temp, EXPERIMENTAL_ALG, DEFAULT_WIND_VELOCITY, DEFAULT_LATTICE_RES) {};
+	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp) : SnowRenderer(numParticles, extentsInp, temp, EXPERIMENTAL_ALG, DEFAULT_WIND_VELOCITY, DEFAULT_LATTICE_RES) {};
 
 	/**
 	 * Default constructor for SnowRenderer.
 	 */
-	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENT, DEFAULT_TEMP, EXPERIMENTAL_ALG, DEFAULT_WIND_VELOCITY, DEFAULT_LATTICE_RES) {};
+	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENTS, DEFAULT_TEMP, EXPERIMENTAL_ALG, DEFAULT_WIND_VELOCITY, DEFAULT_LATTICE_RES) {};
 
 	/**
 	 * Setup VAOs.
@@ -100,11 +100,11 @@ public:
 
 		// gen snow
 		if (whichAlg == EXPERIMENTAL_ALG) {
-			data = snowGenerator.generateSnowExperimental(numParticles, extent);
+			data = snowGenerator.generateSnowExperimental(numParticles, extents);
 		} else {
-			data = snowGenerator.generateSnowMoeslund(numParticles, extent);
+			data = snowGenerator.generateSnowMoeslund(numParticles, extents);
 		}
-		snowInitGPU(data, numParticles, extent, windVel, latticeRes, temp);
+		snowInitGPU(data, numParticles, extents, windVel, latticeRes, temp);
 
 		// vertices
 		glGenBuffers(1, &vertBuffer);

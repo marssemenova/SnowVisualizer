@@ -77,9 +77,9 @@ public:
 	/**
 	 * Constructor for Axes.
 	 * @param orig - Origin of the axes.
-	 * @param ex - A vec3 specifying the extent of the x-axis, y-axis, and z-axis, respectively.
+	 * @param exs - A vec3 specifying the extents of the x-axis, y-axis, and z-axis, respectively.
 	 */
-	Axes(glm::vec3 orig, glm::vec3 ex) : origin(orig), extents(ex) {
+	Axes(glm::vec3 orig, glm::vec3 exs) : origin(orig), extents(exs) {
 		// load shaders
 		programID = LoadShaders( "shaders/ColorVertexShader.vertexshader", "shaders/ColorFragmentShader.fragmentshader");
 		MVPID = glGetUniformLocation(programID, "MVP");

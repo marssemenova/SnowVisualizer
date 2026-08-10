@@ -24,7 +24,7 @@
 // def vals
 const unsigned DEFAULT_SNOW_COUNT = 100;
 const float DEFAULT_TEMP = -15.0; // C
-const float DEFAULT_EXTENT[3][2] = {{-100, 100}, {-100, 100}, {-100, 100}}; // x range, y range, z range
+const float DEFAULT_EXTENTS[3][2] = {{-100, 100}, {-100, 100}, {-100, 100}}; // x range, y range, z range
 
 // consts
 const float SNOW_STATE_THRESH = -1.0; // above = wet, below = dry

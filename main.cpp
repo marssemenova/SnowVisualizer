@@ -56,7 +56,7 @@ int main() {
     GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
     GLfloat temp = -5.0;
     // wind
-    GLuint latticeRes = 256;
+    GLuint latticeRes = 5;
     GLfloat windVel = 40.0;
 
     // def vars
@@ -91,8 +91,8 @@ int main() {
     glm::vec3 lightpos(0.0f, 10.0f, -10.0f);
 
     // setup snow gen obj
-    GLfloat extent[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
-    SnowRenderer snowGen(numParticles, extent, temp, EXPERIMENTAL_ALG, windVel, latticeRes);
+    GLfloat extents[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
+    SnowRenderer snowGen(numParticles, extents, temp, EXPERIMENTAL_ALG, windVel, latticeRes);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
