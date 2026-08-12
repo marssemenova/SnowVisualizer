@@ -16,7 +16,7 @@ using namespace std;
 #include "../SnowGeneratorData.hpp"
 #include "cuda_errors.h"
 
-#define GRAVITY 0.2f
+#define GRAVITY -0.5f
 #define SNOW_NOISE_Y 0.1f
 
 #define LBM_Q 19
@@ -90,6 +90,11 @@ Lattice *d_destLattice;
 __device__ int getInd(int x, int y, int z) {
     return x + y * d_N + z * d_N*d_N;
 }
+
+__device__ int getInd(int pos[3]) {
+    return getInd(pos[0], pos[1], pos[2]);
+}
+
 // TODO
 __device__ float applyBoundaryConds(float accessInd, unsigned dim) {
     if (accessInd < 0) {
@@ -186,8 +191,19 @@ __device__ __forceinline__ float getRandFloatGPU(float min, float max, curandSta
     return min + (max - min) * curand_uniform(localState);
 }
 
+// TODO
+__device__ void calcVelocity(int pos[3], float* d_velocities, float velocity[3]) {
+    int ind = getInd(pos);
+    for (int x = 0; x < 3; x++) {
+        velocity[x] = d_velocities[3*ind + x];
+    }
+}
 
-
+__device__ void clampInterpolation(int xPos[3]) {
+    for (int x = 0; x < 3; x++) {
+        xPos[x] = xPos[x] < d_N ? xPos[x] : d_N-1;
+    }
+}
 /**
  * Kernel which applies gravity to snow particles and stores the offset.
  * @param d_snowflakeDataFlat - Flattened snowflake data. Every 3 elements correspond
@@ -201,10 +217,11 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
     unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
     unsigned stride = SNOW_GRAV_BLOCK_SIZE;
 
-    // apply forces to snowflakes
+    // apply forces to snow particles
     float xOffset, yOffset, zOffset;
     float yOffsetRand;
     curandState localState;
+    bool checkX, checkY, checkZ;
     float x_phys, y_phys, z_phys, x_lat, y_lat, z_lat;
     float x_phys_offset = min(d_extents[0], d_extents[1]), y_phys_offset = min(d_extents[2], d_extents[3]), z_phys_offset = min(d_extents[4], d_extents[5]);
     float dx, dy, dz;
@@ -212,9 +229,8 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
     float ux, uy, uz;
     int x_lat_int, y_lat_int, z_lat_int;
     int x0[3], x1[3], x2[3], x3[3], x4[3], x5[3], x6[3], x7[3];
-    int ind;
     for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
-        // translate x y z into a lattice point
+        // apply wind field to snow particles
         x_phys = d_snowflakeDataFlat[3*x] - x_phys_offset;
         y_phys = d_snowflakeDataFlat[3*x+1] - y_phys_offset;
         z_phys = d_snowflakeDataFlat[3*x+2] - z_phys_offset;
@@ -233,51 +249,25 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
             x5[0] = x_lat_int + 1, x5[1] = y_lat_int, x5[2] = z_lat_int + 1;
             x6[0] = x_lat_int + 1, x6[1] = y_lat_int + 1, x6[2] = z_lat_int;
             x7[0] = x_lat_int + 1, x7[1] = y_lat_int + 1, x7[2] = z_lat_int + 1;
-            for (int i = 0; i < 3; i++) {
-                x0[i] = x0[i] < d_N ? x0[i] : d_N-1; // TODO: good strat?
-                x1[i] = x1[i] < d_N ? x1[i] : d_N-1;
-                x2[i] = x2[i] < d_N ? x2[i] : d_N-1;
-                x3[i] = x3[i] < d_N ? x3[i] : d_N-1;
-                x4[i] = x4[i] < d_N ? x4[i] : d_N-1;
-                x5[i] = x5[i] < d_N ? x5[i] : d_N-1;
-                x6[i] = x6[i] < d_N ? x6[i] : d_N-1;
-                x7[i] = x7[i] < d_N ? x7[i] : d_N-1;
-            }
+            clampInterpolation(x0);
+            clampInterpolation(x1);
+            clampInterpolation(x2);
+            clampInterpolation(x3);
+            clampInterpolation(x4);
+            clampInterpolation(x5);
+            clampInterpolation(x6);
+            clampInterpolation(x7);
             dx = x_lat-x0[0];
             dy = y_lat-x0[1];
             dz = z_lat-x0[2];
-            ind = x0[0] + x0[1] * d_N + x0[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x0[i] = d_velocities[3*ind + i];
-            }
-            ind = x1[0] + x1[1] * d_N + x1[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x1[i] = d_velocities[3*ind + i];
-            }
-            ind = x2[0] + x2[1] * d_N + x2[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x2[i] = d_velocities[3*ind + i];
-            }
-            ind = x3[0] + x3[1] * d_N + x3[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x3[i] = d_velocities[3*ind + i];
-            }
-            ind = x4[0] + x4[1] * d_N + x4[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x4[i] = d_velocities[3*ind + i];
-            }
-            ind = x5[0] + x5[1] * d_N + x5[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x5[i] = d_velocities[3*ind + i];
-            }
-            ind = x6[0] + x6[1] * d_N + x6[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x6[i] = d_velocities[3*ind + i];
-            }
-            ind = x7[0] + x7[1] * d_N + x7[2] * d_N*d_N;
-            for (int i = 0; i < 3; i++) {
-                u_x7[i] = d_velocities[3*ind + i];
-            }
+            calcVelocity(x0, d_velocities, u_x0);
+            calcVelocity(x1, d_velocities, u_x1);
+            calcVelocity(x2, d_velocities, u_x2);
+            calcVelocity(x3, d_velocities, u_x3);
+            calcVelocity(x4, d_velocities, u_x4);
+            calcVelocity(x5, d_velocities, u_x5);
+            calcVelocity(x6, d_velocities, u_x6);
+            calcVelocity(x7, d_velocities, u_x7);
             ux = (1-dx)*(1-dy)*(1-dz)*u_x0[0]
                 + (1-dx)*(1-dy)*dz*u_x1[0]
                 + (1-dx)*dy*(1-dz)*u_x2[0]
@@ -286,69 +276,61 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
                 + dx*(1-dy)*dz*u_x5[0]
                 + dx*dy*(1-dz)*u_x6[0]
                 + dx*dy*dz*u_x7[0];
-            ux = ux*d_delta_x_phys/d_delta_t_phys;;
             uy = (1-dx)*(1-dy)*(1-dz)*u_x0[1]
-                                       + (1-dx)*(1-dy)*dz*u_x1[1]
-                                       + (1-dx)*dy*(1-dz)*u_x2[1]
-                                       + dx*(1-dy)*(1-dz)*u_x3[1]
-                                       + (1-dx)*dy*dz*u_x4[1]
-                                       + dx*(1-dy)*dz*u_x5[1]
-                                       + dx*dy*(1-dz)*u_x6[1]
-                                       + dx*dy*dz*u_x7[1];
-            uy = uy*d_delta_x_phys/d_delta_t_phys;;
+               + (1-dx)*(1-dy)*dz*u_x1[1]
+               + (1-dx)*dy*(1-dz)*u_x2[1]
+               + dx*(1-dy)*(1-dz)*u_x3[1]
+               + (1-dx)*dy*dz*u_x4[1]
+               + dx*(1-dy)*dz*u_x5[1]
+               + dx*dy*(1-dz)*u_x6[1]
+               + dx*dy*dz*u_x7[1];
             uz = (1-dx)*(1-dy)*(1-dz)*u_x0[2]
-                            + (1-dx)*(1-dy)*dz*u_x1[2]
-                            + (1-dx)*dy*(1-dz)*u_x2[2]
-                            + dx*(1-dy)*(1-dz)*u_x3[2]
-                            + (1-dx)*dy*dz*u_x4[2]
-                            + dx*(1-dy)*dz*u_x5[2]
-                            + dx*dy*(1-dz)*u_x6[2]
-                            + dx*dy*dz*u_x7[2];
-            uz = uz*d_delta_x_phys/d_delta_t_phys;
-            printf("vel %f %f %f\n\n", ux, uy, uz);
+                + (1-dx)*(1-dy)*dz*u_x1[2]
+                + (1-dx)*dy*(1-dz)*u_x2[2]
+                + dx*(1-dy)*(1-dz)*u_x3[2]
+                + (1-dx)*dy*dz*u_x4[2]
+                + dx*(1-dy)*dz*u_x5[2]
+                + dx*dy*(1-dz)*u_x6[2]
+                + dx*dy*dz*u_x7[2];
         } else {
-            ind = x_lat_int + y_lat_int * d_N + z_lat_int * d_N*d_N;
-            ux = d_velocities[3*ind]*d_delta_x_phys;
-            uy = d_velocities[3*ind + 1]*d_delta_x_phys;
-            uz = d_velocities[3*ind + 2]*d_delta_x_phys;
+            x0[0] = x_lat_int, x0[1] = y_lat_int, x0[2] = z_lat_int;
+            calcVelocity(x0, d_velocities, u_x0);
+            ux = u_x0[0];
+            uy = u_x0[1];
+            uz = u_x0[2];
         }
+        ux = ux*d_delta_x_phys/d_delta_t_phys;
+        uy = uy*d_delta_x_phys/d_delta_t_phys;
+        uz = uz*d_delta_x_phys/d_delta_t_phys;
+        //printf("vel %f %f %f\n\n", ux, uy, uz);
 
-        // update x
-        d_snowOffsets[5*x] = ux;
-        d_snowflakeDataFlat[3*x] += ux;
-
-        // update y
-        d_snowOffsets[5*x+1] = uy;
-        d_snowflakeDataFlat[3*x+1] += uy;
-
-        // update z
-        d_snowOffsets[5*x+2] = uz;
-        d_snowflakeDataFlat[3*x+2] += uz;
-
-        if (d_snowflakeDataFlat[3*x+1] < d_extents[2]) {
+        checkX = d_snowflakeDataFlat[3*x] + ux < d_extents[0] || d_snowflakeDataFlat[3*x] + ux > d_extents[1];
+        checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY < d_extents[2] || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY > d_extents[3];
+        checkZ = d_snowflakeDataFlat[3*x+2] + uz < d_extents[4] || d_snowflakeDataFlat[3*x+2] + uz > d_extents[5];
+        if (checkX || checkY || checkZ) {
             localState = d_globalState[kernelInd];
             xOffset = getRandFloatGPU(d_extents[0], d_extents[1], &localState) - d_snowflakeDataFlat[3*x];
-            yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extents[3] - d_extents[2])), SNOW_NOISE_Y*(d_extents[3] - d_extents[2]), &localState);
+            yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extents[3] - d_extents[2])), 0, &localState);
+            yOffset = max(d_extents[2], d_extents[3]) + yOffsetRand- d_snowflakeDataFlat[3*x+1];
             zOffset = getRandFloatGPU(d_extents[4], d_extents[5], &localState) - d_snowflakeDataFlat[3*x+2];
-            yOffset = (d_extents[3] - d_extents[2]) + yOffsetRand;
             d_globalState[kernelInd] = localState;
         } else {
-            yOffset = -GRAVITY;
-            xOffset = 0;
-            zOffset = 0;
+            xOffset =  ux;
+            yOffset = uy + GRAVITY;
+            zOffset = uz;
         }
 
         // update x
-         d_snowOffsets[5*x] += xOffset;
-         d_snowflakeDataFlat[3*x] += xOffset;
+        d_snowOffsets[5*x] = xOffset;
+        d_snowflakeDataFlat[3*x] += xOffset;
 
         // update y
-        d_snowOffsets[5*x+1] += yOffset;
+        d_snowOffsets[5*x+1] = yOffset;
         d_snowflakeDataFlat[3*x+1] += yOffset;
 
         // update z
-         d_snowOffsets[5*x+2] += zOffset;
-         d_snowflakeDataFlat[3*x+2] += zOffset;
+        d_snowOffsets[5*x+2] = zOffset;
+        d_snowflakeDataFlat[3*x+2] += zOffset;
     }
 }
 

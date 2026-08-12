@@ -57,7 +57,7 @@ int main() {
     GLfloat temp = -5.0;
     // wind
     GLuint latticeRes = 20;
-    GLfloat windVel = 1.0;
+    GLfloat windVel = 0.1;
 
     // def vars
     float screenW = SCR_WIDTH;
