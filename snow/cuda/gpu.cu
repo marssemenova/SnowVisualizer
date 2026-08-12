@@ -96,7 +96,7 @@ __device__ int getInd(int pos[3]) {
 }
 
 // TODO
-__device__ float applyBoundaryConds(float accessInd, unsigned dim) {
+__device__ float applyBoundaryConds(float accessInd) {
     if (accessInd < 0) {
         return d_N - 1;
     }
@@ -131,44 +131,44 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
     float* srcRefs[] = {d_srcLattice->f0, d_srcLattice->f1, d_srcLattice->f2, d_srcLattice->f3, d_srcLattice->f4, d_srcLattice->f5, d_srcLattice->f6, d_srcLattice->f7, d_srcLattice->f8, d_srcLattice->f9, d_srcLattice->f10, d_srcLattice->f11, d_srcLattice->f12, d_srcLattice->f13, d_srcLattice->f14, d_srcLattice->f15, d_srcLattice->f16, d_srcLattice->f17, d_srcLattice->f18};
     // stream 19 pdfs from adjacent cells to curr cell + apply boundary conds
     int accessX, accessY, accessZ, accessInd;
-    for (int x = 0; x < LBM_Q; x++) {
-        accessX = x-D_LATTICE_VELOCITIES[x][0];
-        accessY = y-D_LATTICE_VELOCITIES[x][1];
-        accessZ = z-D_LATTICE_VELOCITIES[x][2];
-        accessX = applyBoundaryConds(accessX, 0);
-        accessY = applyBoundaryConds(accessY, 1);
-        accessZ = applyBoundaryConds(accessZ, 2);
+    for (int i = 0; i < LBM_Q; i++) {
+        accessX = x-D_LATTICE_VELOCITIES[i][0];
+        accessY = y-D_LATTICE_VELOCITIES[i][1];
+        accessZ = z-D_LATTICE_VELOCITIES[i][2];
+        accessX = applyBoundaryConds(accessX);
+        accessY = applyBoundaryConds(accessY);
+        accessZ = applyBoundaryConds(accessZ);
         accessInd = getInd(accessX, accessY, accessZ);
-        (destRefs[x])[ind] = (srcRefs[x])[accessInd];
+        (destRefs[i])[ind] = (srcRefs[i])[accessInd];
     }
 
     // calc density (rho)
     float density = 0;
-    for (int x = 0; x < LBM_Q; x++) {
-        density += (destRefs[x])[ind];
+    for (int i = 0; i < LBM_Q; i++) {
+        density += (destRefs[i])[ind];
     }
 
     // calc velocity (u)
     float velocity[3];
-    for (int x = 0; x < 3; x++) {
-        velocity[x] = 0;
-        for (int i = 0; i < LBM_Q; i++) {
-            velocity[x] += (destRefs[i])[ind]*D_LATTICE_VELOCITIES[i][x];
+    for (int i = 0; i < 3; i++) {
+        velocity[i] = 0;
+        for (int j = 0; j < LBM_Q; j++) {
+            velocity[i] += (destRefs[j])[ind]*D_LATTICE_VELOCITIES[j][i];
         }
-        velocity[x]/=density;
-        d_velocities[3*ind + x] = velocity[x]; // save
+        velocity[i]/=density;
+        d_velocities[3*ind + i] = velocity[i]; // save
     }
 
     // calc the loc equilibrium distro funcs f_qi^eq
     float feq[LBM_Q];
     float t3 = velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2];
-    for (int x = 0; x < LBM_Q; x++) {
-        feq[x] = feqFunc(velocity, density, t3, x);
+    for (int i = 0; i < LBM_Q; i++) {
+        feq[i] = feqFunc(velocity, density, t3, i);
     }
 
     // calc distro func (f_qi) at new time step + save 19 vals of distro func (f_qi) to curr cell
-    for (int x = 0; x < LBM_Q; x++) {
-        (destRefs[x])[ind] = (destRefs[x])[ind] - ((destRefs[x])[ind] - feq[x])/LBM_TAU;
+    for (int i = 0; i < LBM_Q; i++) {
+        (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - feq[i])/LBM_TAU;
     }
 }
 
