@@ -16,7 +16,7 @@ using namespace std;
 #include "../SnowGeneratorData.hpp"
 #include "cuda_errors.h"
 
-#define GRAVITY -0.5f
+#define GRAVITY -2.0f
 #define SNOW_NOISE_Y 0.1f
 
 #define LBM_Q 19
@@ -96,15 +96,65 @@ __device__ int getInd(int pos[3]) {
 }
 
 // TODO
-__device__ float applyBoundaryConds(float accessInd) {
-    if (accessInd < 0) {
-        return d_N - 1;
-    }
-    if (accessInd >= d_N) {
-        return 0;
-    }
+// TODO
+__device__ bool applyBoundaryConds(float accessX, float accessY, float accessZ, int f) {
+    return (0 <= accessX && accessX < d_N && 0 <= accessY && accessY < d_N && 0 <= accessZ && accessZ < d_N);
 
-    return accessInd;
+    if (f == 1) {
+        return accessX >= 0;
+    }
+    if (f == 2) {
+        return accessX <= d_N-1;
+    }
+    if (f == 3) {
+        return accessY >= 0;
+    }
+    if (f == 4) {
+        return accessY <= d_N-1;
+    }
+    if (f == 5) {
+        return accessZ >= 0;
+    }
+    if (f == 6) {
+        return accessZ <= d_N-1;
+    }
+    if (f == 7) {
+        return accessX >= 0 && accessY >= 0;
+    }
+    if (f == 8) {
+        return accessX >= 0 && accessY <= d_N-1;
+    }
+    if (f == 9) {
+        return accessX <= d_N-1 && accessY >= 0;
+    }
+    if (f == 10) {
+        return accessX <= d_N-1 && accessY <= d_N-1;
+    }
+    if (f == 11) {
+        return accessX >= 0 && accessZ >= 0;
+    }
+    if (f == 12) {
+        return accessX >= 0 && accessZ <= d_N-1;
+    }
+    if (f == 13) {
+        return accessX <= d_N-1 && accessZ >= 0;
+    }
+    if (f == 14) {
+        return accessX <= d_N-1 && accessZ <= d_N-1;
+    }
+    if (f == 15) {
+        return accessY >= 0 && accessZ >= 0;
+    }
+    if (f == 16) {
+        return accessY >= 0 && accessZ <= d_N-1;
+    }
+    if (f == 17) {
+        return accessY <= d_N-1 && accessZ >= 0;
+    }
+    if (f == 18) {
+        return accessY <= d_N-1 && accessZ <= d_N-1;
+    }
+    return true;
 }
 
 // TODO
@@ -112,6 +162,24 @@ __device__ float feqFunc(float velocity[3], float density, float t3, int f) {
     float t1 = D_LATTICE_VELOCITIES[f][0]*velocity[0] + D_LATTICE_VELOCITIES[f][1]*velocity[1] + D_LATTICE_VELOCITIES[f][2]*velocity[2];
     float t2 = t1*t1;
     return D_LATTICE_WEIGHTS[f]*density*(1 + (3.0/LBM_C)*t1 + (9.0/(2.0*pow(LBM_C,2)))*t2 - (3.0/(2.0*pow(LBM_C,2)))*t3);
+}
+
+__global__ void printLattice(Lattice *d_lattice) {
+    float* refs[] = {d_lattice->f0, d_lattice->f1, d_lattice->f2, d_lattice->f3, d_lattice->f4, d_lattice->f5, d_lattice->f6, d_lattice->f7, d_lattice->f8, d_lattice->f9, d_lattice->f10, d_lattice->f11, d_lattice->f12, d_lattice->f13, d_lattice->f14, d_lattice->f15, d_lattice->f16, d_lattice->f17, d_lattice->f18};
+    for (int x = 0; x < d_N*d_N*d_N; x++) {
+        printf("%d\n", x);
+        for (int i = 0; i < LBM_Q; i++) {
+            printf("%f ", (refs[i])[x]);
+        }
+        printf("\n");
+    }
+}
+
+__global__ void printVelocities(float *d_velocities) {
+    for (int x = 0; x < d_N*d_N*d_N; x++) {
+        printf("%d: (%f %f %f), ", x, d_velocities[3*x], d_velocities[3*x+1], d_velocities[3*x+2]);
+    }
+    printf("\n");
 }
 
 // TODO
@@ -126,20 +194,92 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
     if (!(ind < d_N*d_N*d_N)) { // TODO: refactor
         return;
     }
-
     float* destRefs[] = {d_destLattice->f0, d_destLattice->f1, d_destLattice->f2, d_destLattice->f3, d_destLattice->f4, d_destLattice->f5, d_destLattice->f6, d_destLattice->f7, d_destLattice->f8, d_destLattice->f9, d_destLattice->f10, d_destLattice->f11, d_destLattice->f12, d_destLattice->f13, d_destLattice->f14, d_destLattice->f15, d_destLattice->f16, d_destLattice->f17, d_destLattice->f18};
+
+
+    if (x == 0) {
+        float velocity1[] = {d_windVel, 0, d_windVel};
+        float feq1[LBM_Q];
+        float t3 = velocity1[0]*velocity1[0] + velocity1[1]*velocity1[1] + velocity1[2]*velocity1[2];
+        for (int i = 0; i < LBM_Q; i++) {
+            feq1[i] = feqFunc(velocity1, 1.0f, t3, i);
+        }
+        for (int i = 0; i < LBM_Q; i++) {
+            (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - feq1[i])/LBM_TAU;
+        }
+    return;
+    }
     float* srcRefs[] = {d_srcLattice->f0, d_srcLattice->f1, d_srcLattice->f2, d_srcLattice->f3, d_srcLattice->f4, d_srcLattice->f5, d_srcLattice->f6, d_srcLattice->f7, d_srcLattice->f8, d_srcLattice->f9, d_srcLattice->f10, d_srcLattice->f11, d_srcLattice->f12, d_srcLattice->f13, d_srcLattice->f14, d_srcLattice->f15, d_srcLattice->f16, d_srcLattice->f17, d_srcLattice->f18};
-    // stream 19 pdfs from adjacent cells to curr cell + apply boundary conds
+    bool flag[19];
+// stream 19 pdfs from adjacent cells to curr cell + apply boundary conds
     int accessX, accessY, accessZ, accessInd;
     for (int i = 0; i < LBM_Q; i++) {
+        flag[i] = true;
+        //subtract lattice velocities because we are "pulling in"
         accessX = x-D_LATTICE_VELOCITIES[i][0];
         accessY = y-D_LATTICE_VELOCITIES[i][1];
         accessZ = z-D_LATTICE_VELOCITIES[i][2];
-        accessX = applyBoundaryConds(accessX);
-        accessY = applyBoundaryConds(accessY);
-        accessZ = applyBoundaryConds(accessZ);
-        accessInd = getInd(accessX, accessY, accessZ);
-        (destRefs[i])[ind] = (srcRefs[i])[accessInd];
+        if (applyBoundaryConds(accessX, accessY, accessZ, i)) {
+            accessInd = getInd(accessX, accessY, accessZ);
+            (destRefs[i])[ind] = (srcRefs[i])[accessInd];
+            flag[i] = false;
+        }
+    }
+
+    // apply boundary conds
+    if (flag[1]) { // f1=f2
+        d_destLattice->f1[ind] = d_srcLattice->f2[ind];
+    }
+    if (flag[2]) { // f2=f1
+        d_destLattice->f2[ind] = d_srcLattice->f1[ind];
+    }
+    if (flag[3]) { // f3=f4
+        d_destLattice->f3[ind] = d_srcLattice->f4[ind];
+    }
+    if (flag[4]) { // f4=f3
+        d_destLattice->f4[ind] = d_srcLattice->f3[ind];
+    }
+    if (flag[5]) { // f5=f6
+        d_destLattice->f5[ind] = d_srcLattice->f6[ind];
+    }
+    if (flag[6]) { // f6=f5
+        d_destLattice->f6[ind] = d_srcLattice->f5[ind];
+    }
+    if (flag[7]) { // f7=f10
+        d_destLattice->f7[ind] = d_srcLattice->f10[ind];
+    }
+    if (flag[8]) { // f8=f9
+        d_destLattice->f8[ind] = d_srcLattice->f9[ind];
+    }
+    if (flag[9]) { // f9=f8
+        d_destLattice->f9[ind] = d_srcLattice->f8[ind];
+    }
+    if (flag[10]) { // f10=f7
+        d_destLattice->f10[ind] = d_srcLattice->f7[ind];
+    }
+    if (flag[11]) { // f11=f14
+        d_destLattice->f11[ind] = d_srcLattice->f14[ind];
+    }
+    if (flag[12]) { // f12=f13
+        d_destLattice->f12[ind] = d_srcLattice->f13[ind];
+    }
+    if (flag[13]) { // f13=f12
+        d_destLattice->f13[ind] = d_srcLattice->f12[ind];
+    }
+    if (flag[14]) { // f14=f11
+        d_destLattice->f14[ind] = d_srcLattice->f11[ind];
+    }
+    if (flag[15]) { // f15=f18
+        d_destLattice->f15[ind] = d_srcLattice->f18[ind];
+    }
+    if (flag[16]) { // f16=f17
+        d_destLattice->f16[ind] = d_srcLattice->f17[ind];
+    }
+    if (flag[17]) { // f17=f16
+        d_destLattice->f17[ind] = d_srcLattice->f16[ind];
+    }
+    if (flag[18]) { // f18=f15
+        d_destLattice->f18[ind] = d_srcLattice->f15[ind];
     }
 
     // calc density (rho)
@@ -171,6 +311,8 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
         (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - feq[i])/LBM_TAU;
     }
 }
+
+
 
 /**
  * Create and initialize curandState using seed, one for each thread.
@@ -240,6 +382,7 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
         x_lat_int = (int) x_lat;
         y_lat_int = (int) y_lat;
         z_lat_int = (int) z_lat;
+/*
         if (x_lat != x_lat_int || y_lat != y_lat_int || z_lat != z_lat_int) { // interpolation
             x0[0] = x_lat_int, x0[1] = y_lat_int, x0[2] = z_lat_int;
             x1[0] = x_lat_int, x1[1] = y_lat_int, x1[2] = z_lat_int + 1;
@@ -293,12 +436,13 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
                 + dx*dy*(1-dz)*u_x6[2]
                 + dx*dy*dz*u_x7[2];
         } else {
+*/
             x0[0] = x_lat_int, x0[1] = y_lat_int, x0[2] = z_lat_int;
             calcVelocity(x0, d_velocities, u_x0);
             ux = u_x0[0];
             uy = u_x0[1];
             uz = u_x0[2];
-        }
+        //}
         ux = ux*d_delta_x_phys/d_delta_t_phys;
         uy = uy*d_delta_x_phys/d_delta_t_phys;
         uz = uz*d_delta_x_phys/d_delta_t_phys;
@@ -307,6 +451,7 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
         checkX = d_snowflakeDataFlat[3*x] + ux < d_extents[0] || d_snowflakeDataFlat[3*x] + ux > d_extents[1];
         checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY < d_extents[2] || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY > d_extents[3];
         checkZ = d_snowflakeDataFlat[3*x+2] + uz < d_extents[4] || d_snowflakeDataFlat[3*x+2] + uz > d_extents[5];
+
         if (checkX || checkY || checkZ) {
             localState = d_globalState[kernelInd];
             xOffset = getRandFloatGPU(d_extents[0], d_extents[1], &localState) - d_snowflakeDataFlat[3*x];
@@ -367,7 +512,6 @@ __global__ void initLBMModel(Lattice *d_srcLattice) {
         for (int i = 0; i < LBM_Q; i++) {
             (srcRefs[i])[x] = feq[i];
         }
-
     }
 }
 
@@ -565,6 +709,11 @@ extern void snowUpdateGPU() {
 
     // fetch work
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
+
+    // TODO: rem
+   // printLattice<<<1,1>>>(d_srcLattice);
+   // printVelocities<<<1,1>>>(d_velocities);
+   // printf("\n\n\n\n");
 
     // swap grids
     Lattice *swap = d_srcLattice;

@@ -57,7 +57,7 @@ int main() {
     GLfloat temp = -5.0;
     // wind
     GLuint latticeRes = 20;
-    GLfloat windVel = 0.1;
+    GLfloat windVel = 3;
 
     // def vars
     float screenW = SCR_WIDTH;
@@ -76,7 +76,7 @@ int main() {
     if (whichCam == GLOBE_CAM) {
         eye= {0.0f, 3.0f, 5.0f};
     } else {
-        eye = {0.0f, -50.0f, 200.0f};
+        eye = {0.0f, 0.0f, 400.0f};
     }
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     glm::vec3 center = {0.0f, 0.0f, 0.0f};
@@ -118,25 +118,11 @@ int main() {
         // swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
-        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-
     // check if the ESC key was pressed or the window was closed
     while (glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);
 
-    // render loop
-    while (!glfwWindowShouldClose(window)) {
-        // input
-        processInput(window);
-
-        // render
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     glfwTerminate();
