@@ -11,10 +11,10 @@
 #include "util/Constants.hpp"
 
 // OpenGL includes
-
 #include "util/ImportGL.hpp"
 
 #include "snow/SnowRenderer.hpp"
+#include "util/Input.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -49,20 +49,11 @@ int main() {
         return -1;
     }
 
-    // temp input vars (TODO: get from CLI args)
-    // snow
-    GLuint numParticles = 1000;
-    GLuint whichCam = FIRST_PERSON_CAM;
-    GLfloat minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
-    GLfloat temp = -5.0;
-    // wind
-    GLuint latticeRes = 20;
-    GLfloat windVel = 3;
-
     // def vars
     float screenW = SCR_WIDTH;
     float screenH = SCR_HEIGHT;
     GLenum err;
+    windVel = (windVel / 3.6f); // km/h > cm/s
 
     // ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
@@ -118,7 +109,7 @@ int main() {
         // swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     // check if the ESC key was pressed or the window was closed
     while (glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);

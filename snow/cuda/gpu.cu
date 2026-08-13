@@ -15,8 +15,11 @@ using namespace std;
 
 #include "../SnowGeneratorData.hpp"
 #include "cuda_errors.h"
+#include "cuda_utils.h"
 
-#define GRAVITY -2.0f
+#define TEST true
+
+#define GRAVITY -0.981f
 #define SNOW_NOISE_Y 0.1f
 
 #define LBM_Q 19
@@ -57,10 +60,10 @@ struct Lattice {
 // LBM
 dim3 h_lbmBlockSize;
 dim3 h_lbmGridSize;
-// apply grav
-#define SNOW_GRAV_BLOCK_SIZE 1024
-#define SNOW_GRAV_BATCH_SIZE 8
-unsigned h_snowGravNumBlocks;
+// apply forces
+#define SNOW_FORCES_BLOCK_SIZE 1024
+#define SNOW_FORCES_BATCH_SIZE 8
+unsigned h_snowForcesNumBlocks;
 // update snow
 #define SNOW_UPDATE_BLOCK_SIZE 1024
 unsigned h_snowUpdateNumBlocks;
@@ -78,6 +81,7 @@ __constant__ __device__ float d_delta_x_phys;
 __constant__ __device__ float d_delta_t_phys;
 __constant__ __device__ unsigned d_N;
 __constant__ __device__ float d_windVel;
+__constant__ __device__ float d_feqInit[LBM_Q];
 float *d_verts;
 float *d_snowflakeDataFlat;
 unsigned *d_numParticles;
@@ -87,102 +91,18 @@ curandState *d_globalState;
 Lattice *d_srcLattice;
 Lattice *d_destLattice;
 
-__device__ int getInd(int x, int y, int z) {
-    return x + y * d_N + z * d_N*d_N;
-}
+#include "lbm_utils.h"
 
-__device__ int getInd(int pos[3]) {
-    return getInd(pos[0], pos[1], pos[2]);
-}
-
-// TODO
-// TODO
-__device__ bool applyBoundaryConds(float accessX, float accessY, float accessZ, int f) {
+__device__ bool applyBoundaryConds(float accessX, float accessY, float accessZ) {
     return (0 <= accessX && accessX < d_N && 0 <= accessY && accessY < d_N && 0 <= accessZ && accessZ < d_N);
-
-    if (f == 1) {
-        return accessX >= 0;
-    }
-    if (f == 2) {
-        return accessX <= d_N-1;
-    }
-    if (f == 3) {
-        return accessY >= 0;
-    }
-    if (f == 4) {
-        return accessY <= d_N-1;
-    }
-    if (f == 5) {
-        return accessZ >= 0;
-    }
-    if (f == 6) {
-        return accessZ <= d_N-1;
-    }
-    if (f == 7) {
-        return accessX >= 0 && accessY >= 0;
-    }
-    if (f == 8) {
-        return accessX >= 0 && accessY <= d_N-1;
-    }
-    if (f == 9) {
-        return accessX <= d_N-1 && accessY >= 0;
-    }
-    if (f == 10) {
-        return accessX <= d_N-1 && accessY <= d_N-1;
-    }
-    if (f == 11) {
-        return accessX >= 0 && accessZ >= 0;
-    }
-    if (f == 12) {
-        return accessX >= 0 && accessZ <= d_N-1;
-    }
-    if (f == 13) {
-        return accessX <= d_N-1 && accessZ >= 0;
-    }
-    if (f == 14) {
-        return accessX <= d_N-1 && accessZ <= d_N-1;
-    }
-    if (f == 15) {
-        return accessY >= 0 && accessZ >= 0;
-    }
-    if (f == 16) {
-        return accessY >= 0 && accessZ <= d_N-1;
-    }
-    if (f == 17) {
-        return accessY <= d_N-1 && accessZ >= 0;
-    }
-    if (f == 18) {
-        return accessY <= d_N-1 && accessZ <= d_N-1;
-    }
-    return true;
 }
 
-// TODO
 __device__ float feqFunc(float velocity[3], float density, float t3, int f) {
     float t1 = D_LATTICE_VELOCITIES[f][0]*velocity[0] + D_LATTICE_VELOCITIES[f][1]*velocity[1] + D_LATTICE_VELOCITIES[f][2]*velocity[2];
     float t2 = t1*t1;
     return D_LATTICE_WEIGHTS[f]*density*(1 + (3.0/LBM_C)*t1 + (9.0/(2.0*pow(LBM_C,2)))*t2 - (3.0/(2.0*pow(LBM_C,2)))*t3);
 }
 
-__global__ void printLattice(Lattice *d_lattice) {
-    float* refs[] = {d_lattice->f0, d_lattice->f1, d_lattice->f2, d_lattice->f3, d_lattice->f4, d_lattice->f5, d_lattice->f6, d_lattice->f7, d_lattice->f8, d_lattice->f9, d_lattice->f10, d_lattice->f11, d_lattice->f12, d_lattice->f13, d_lattice->f14, d_lattice->f15, d_lattice->f16, d_lattice->f17, d_lattice->f18};
-    for (int x = 0; x < d_N*d_N*d_N; x++) {
-        printf("%d\n", x);
-        for (int i = 0; i < LBM_Q; i++) {
-            printf("%f ", (refs[i])[x]);
-        }
-        printf("\n");
-    }
-}
-
-__global__ void printVelocities(float *d_velocities) {
-    for (int x = 0; x < d_N*d_N*d_N; x++) {
-        printf("%d: (%f %f %f), ", x, d_velocities[3*x], d_velocities[3*x+1], d_velocities[3*x+2]);
-    }
-    printf("\n");
-}
-
-// TODO
 __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* d_velocities) {
     // compute the 3D position of the thread
     int x = threadIdx.x;
@@ -191,27 +111,22 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
     // compute the corresponding 1D index
     int ind = getInd(x, y, z);
 
-    if (!(ind < d_N*d_N*d_N)) { // TODO: refactor
+    if (!(ind < d_N*d_N*d_N)) {
         return;
     }
+
+    // stream 19 pdfs from adjacent cells to curr cell + apply boundary conds
     float* destRefs[] = {d_destLattice->f0, d_destLattice->f1, d_destLattice->f2, d_destLattice->f3, d_destLattice->f4, d_destLattice->f5, d_destLattice->f6, d_destLattice->f7, d_destLattice->f8, d_destLattice->f9, d_destLattice->f10, d_destLattice->f11, d_destLattice->f12, d_destLattice->f13, d_destLattice->f14, d_destLattice->f15, d_destLattice->f16, d_destLattice->f17, d_destLattice->f18};
-
-
-    if (x == 0) {
-        float velocity1[] = {d_windVel, 0, d_windVel};
-        float feq1[LBM_Q];
-        float t3 = velocity1[0]*velocity1[0] + velocity1[1]*velocity1[1] + velocity1[2]*velocity1[2];
-        for (int i = 0; i < LBM_Q; i++) {
-            feq1[i] = feqFunc(velocity1, 1.0f, t3, i);
-        }
-        for (int i = 0; i < LBM_Q; i++) {
-            (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - feq1[i])/LBM_TAU;
-        }
-    return;
-    }
     float* srcRefs[] = {d_srcLattice->f0, d_srcLattice->f1, d_srcLattice->f2, d_srcLattice->f3, d_srcLattice->f4, d_srcLattice->f5, d_srcLattice->f6, d_srcLattice->f7, d_srcLattice->f8, d_srcLattice->f9, d_srcLattice->f10, d_srcLattice->f11, d_srcLattice->f12, d_srcLattice->f13, d_srcLattice->f14, d_srcLattice->f15, d_srcLattice->f16, d_srcLattice->f17, d_srcLattice->f18};
+
+    if (x == 0) { // inlet for dynamic wind
+        for (int i = 0; i < LBM_Q; i++) {
+            (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - d_feqInit[i])/LBM_TAU;
+        }
+        return;
+    }
+
     bool flag[19];
-// stream 19 pdfs from adjacent cells to curr cell + apply boundary conds
     int accessX, accessY, accessZ, accessInd;
     for (int i = 0; i < LBM_Q; i++) {
         flag[i] = true;
@@ -219,7 +134,7 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
         accessX = x-D_LATTICE_VELOCITIES[i][0];
         accessY = y-D_LATTICE_VELOCITIES[i][1];
         accessZ = z-D_LATTICE_VELOCITIES[i][2];
-        if (applyBoundaryConds(accessX, accessY, accessZ, i)) {
+        if (applyBoundaryConds(accessX, accessY, accessZ)) {
             accessInd = getInd(accessX, accessY, accessZ);
             (destRefs[i])[ind] = (srcRefs[i])[accessInd];
             flag[i] = false;
@@ -312,8 +227,6 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
     }
 }
 
-
-
 /**
  * Create and initialize curandState using seed, one for each thread.
  * Stores result in globalState[tid]. // TODO: params
@@ -325,15 +238,6 @@ __global__ void setupSnowRandState(curandState* d_globalState, uint64_t seed, un
     }
 }
 
-/**
- * Generate a floating point number in the range (min,max].
- * Note curand_uniform returns numbers in the  range (0.0, 1.0]. // TODO: params
- */
-__device__ __forceinline__ float getRandFloatGPU(float min, float max, curandState* localState) {
-    return min + (max - min) * curand_uniform(localState);
-}
-
-// TODO
 __device__ void calcVelocity(int pos[3], float* d_velocities, float velocity[3]) {
     int ind = getInd(pos);
     for (int x = 0; x < 3; x++) {
@@ -346,8 +250,9 @@ __device__ void clampInterpolation(int xPos[3]) {
         xPos[x] = xPos[x] < d_N ? xPos[x] : d_N-1;
     }
 }
+
 /**
- * Kernel which applies gravity to snow particles and stores the offset.
+ * Kernel which applies forces to snow particles and stores the offset.
  * @param d_snowflakeDataFlat - Flattened snowflake data. Every 3 elements correspond
  * to a snow particle's coordinates.
  * @param d_snowOffsets - The offsets array into which to write. Every 5 elements correspond to a
@@ -355,14 +260,14 @@ __device__ void clampInterpolation(int xPos[3]) {
  * is the number of polygons in the snowflake, and the 5th parameter is the first index of its
  * vertices in the vertices array.
  */
-__global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets, curandState* d_globalState, float* d_velocities) {
-    unsigned kernelInd = blockIdx.x*SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE + threadIdx.x;
-    unsigned stride = SNOW_GRAV_BLOCK_SIZE;
+__global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets, curandState* d_globalState, float* d_velocities) {
+    unsigned kernelInd = blockIdx.x*SNOW_FORCES_BLOCK_SIZE*SNOW_FORCES_BATCH_SIZE + threadIdx.x;
+    unsigned stride = SNOW_FORCES_BLOCK_SIZE;
 
     // apply forces to snow particles
+    curandState localState;
     float xOffset, yOffset, zOffset;
     float yOffsetRand;
-    curandState localState;
     bool checkX, checkY, checkZ;
     float x_phys, y_phys, z_phys, x_lat, y_lat, z_lat;
     float x_phys_offset = min(d_extents[0], d_extents[1]), y_phys_offset = min(d_extents[2], d_extents[3]), z_phys_offset = min(d_extents[4], d_extents[5]);
@@ -371,7 +276,7 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
     float ux, uy, uz;
     int x_lat_int, y_lat_int, z_lat_int;
     int x0[3], x1[3], x2[3], x3[3], x4[3], x5[3], x6[3], x7[3];
-    for (int x = kernelInd; x < min(kernelInd + SNOW_GRAV_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
+    for (int x = kernelInd; x < min(kernelInd + SNOW_FORCES_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
         // apply wind field to snow particles
         x_phys = d_snowflakeDataFlat[3*x] - x_phys_offset;
         y_phys = d_snowflakeDataFlat[3*x+1] - y_phys_offset;
@@ -382,7 +287,6 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
         x_lat_int = (int) x_lat;
         y_lat_int = (int) y_lat;
         z_lat_int = (int) z_lat;
-/*
         if (x_lat != x_lat_int || y_lat != y_lat_int || z_lat != z_lat_int) { // interpolation
             x0[0] = x_lat_int, x0[1] = y_lat_int, x0[2] = z_lat_int;
             x1[0] = x_lat_int, x1[1] = y_lat_int, x1[2] = z_lat_int + 1;
@@ -436,35 +340,33 @@ __global__ void snowApplyGrav(float *d_snowflakeDataFlat, unsigned *d_numParticl
                 + dx*dy*(1-dz)*u_x6[2]
                 + dx*dy*dz*u_x7[2];
         } else {
-*/
             x0[0] = x_lat_int, x0[1] = y_lat_int, x0[2] = z_lat_int;
             calcVelocity(x0, d_velocities, u_x0);
             ux = u_x0[0];
             uy = u_x0[1];
             uz = u_x0[2];
-        //}
+        }
         ux = ux*d_delta_x_phys/d_delta_t_phys;
         uy = uy*d_delta_x_phys/d_delta_t_phys;
         uz = uz*d_delta_x_phys/d_delta_t_phys;
         //printf("vel %f %f %f\n\n", ux, uy, uz);
 
-        checkX = d_snowflakeDataFlat[3*x] + ux < d_extents[0] || d_snowflakeDataFlat[3*x] + ux > d_extents[1];
-        checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY < d_extents[2] || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY > d_extents[3];
-        checkZ = d_snowflakeDataFlat[3*x+2] + uz < d_extents[4] || d_snowflakeDataFlat[3*x+2] + uz > d_extents[5];
+        checkX = d_snowflakeDataFlat[3*x] + ux <= d_extents[0]+1 || d_snowflakeDataFlat[3*x] + ux >= d_extents[1]-1;
+        checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY <= d_extents[2]+1 || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY >= d_extents[3]-1;
+        checkZ = d_snowflakeDataFlat[3*x+2] + uz <= d_extents[4]+1 || d_snowflakeDataFlat[3*x+2] + uz >= d_extents[5]-1;
 
-        if (checkX || checkY || checkZ) {
+        if (checkY) {
             localState = d_globalState[kernelInd];
-            xOffset = getRandFloatGPU(d_extents[0], d_extents[1], &localState) - d_snowflakeDataFlat[3*x];
+            xOffset = getRandFloatGPU(d_extents[0]+1, d_extents[1]-1, &localState) - d_snowflakeDataFlat[3*x];
             yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extents[3] - d_extents[2])), 0, &localState);
-            yOffset = max(d_extents[2], d_extents[3]) + yOffsetRand- d_snowflakeDataFlat[3*x+1];
-            zOffset = getRandFloatGPU(d_extents[4], d_extents[5], &localState) - d_snowflakeDataFlat[3*x+2];
+            yOffset = max(d_extents[2]+1, d_extents[3]-1) + yOffsetRand- d_snowflakeDataFlat[3*x+1];
+            zOffset = getRandFloatGPU(d_extents[4]+1, d_extents[5]-1, &localState) - d_snowflakeDataFlat[3*x+2];
             d_globalState[kernelInd] = localState;
         } else {
-            xOffset =  ux;
+            xOffset = checkX ? -ux : ux;
             yOffset = uy + GRAVITY;
-            zOffset = uz;
+            zOffset = checkZ ? -uz : uz;
         }
-
         // update x
         d_snowOffsets[5*x] = xOffset;
         d_snowflakeDataFlat[3*x] += xOffset;
@@ -499,40 +401,32 @@ __global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_num
     }
 }
 
-// TODO
-__global__ void initLBMModel(Lattice *d_srcLattice) {
+__global__ void feqInitKernel(float *feqInitCpy) {
     float velocity[] = {d_windVel, 0, d_windVel};
     float feq[LBM_Q];
     float t3 = velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2];
     for (int x = 0; x < LBM_Q; x++) {
         feq[x] = feqFunc(velocity, 1.0f, t3, x);
-    }
-    float* srcRefs[] = {d_srcLattice->f0, d_srcLattice->f1, d_srcLattice->f2, d_srcLattice->f3, d_srcLattice->f4, d_srcLattice->f5, d_srcLattice->f6, d_srcLattice->f7, d_srcLattice->f8, d_srcLattice->f9, d_srcLattice->f10, d_srcLattice->f11, d_srcLattice->f12, d_srcLattice->f13, d_srcLattice->f14, d_srcLattice->f15, d_srcLattice->f16, d_srcLattice->f17, d_srcLattice->f18};
-    for (int x = 0; x < d_N*d_N*d_N; x++) { // TODO: turn into kernel = max block size + however many blocks needed
-        for (int i = 0; i < LBM_Q; i++) {
-            (srcRefs[i])[x] = feq[i];
-        }
+        feqInitCpy[x] = feq[x];
     }
 }
 
-// TODO
-bool isLBMModelValid(float h_extents[3][2], float h_windVel, unsigned h_N, float h_temp) {
-    float h_viscosity_phys = 0.000012890; // m^2/s from temp (-5) (https://theengineeringmindset.com/properties-of-air-at-atmospheric-pressure/) TODO
-    float h_cs_phys =  328.25; // m/s from temp (-5) (https://en.wikipedia.org/wiki/Speed_of_sound)
-    float h_delta_x_phys = abs(h_extents[0][1]-h_extents[0][0])/h_N;
-    float h_delta_t_phys = (LBM_C_S/h_cs_phys)*h_delta_x_phys;
-    float h_tau = 3*(h_viscosity_phys*(h_delta_t_phys/pow(h_delta_x_phys, 2)))+1.0/2;
-    printf("%f %f %f\n", h_delta_x_phys, h_delta_t_phys, h_tau);
-    float h_windVel_lbm = h_windVel*(h_delta_t_phys/h_delta_x_phys);
+__global__ void initLBMModel(Lattice *d_srcLattice) {
+    // compute the 3D position of the thread
+    int x = threadIdx.x;
+    int y = blockIdx.x;
+    int z = blockIdx.y;
+    // compute the corresponding 1D index
+    int ind = getInd(x, y, z);
 
-    // if valid write to dev
-    cudaMemcpyToSymbol(d_tau, &h_tau, sizeof(float));
-    cudaMemcpyToSymbol(d_delta_x_phys, &h_delta_x_phys, sizeof(float));
-    cudaMemcpyToSymbol(d_delta_t_phys, &h_delta_t_phys, sizeof(float));
-    cudaMemcpyToSymbol(d_N, &h_N, sizeof(unsigned));
-    cudaMemcpyToSymbol(d_windVel, &h_windVel_lbm, sizeof(float));
+    if (!(ind < d_N*d_N*d_N)) {
+        return;
+    }
 
-    return false; // TODO: rem
+    float* srcRefs[] = {d_srcLattice->f0, d_srcLattice->f1, d_srcLattice->f2, d_srcLattice->f3, d_srcLattice->f4, d_srcLattice->f5, d_srcLattice->f6, d_srcLattice->f7, d_srcLattice->f8, d_srcLattice->f9, d_srcLattice->f10, d_srcLattice->f11, d_srcLattice->f12, d_srcLattice->f13, d_srcLattice->f14, d_srcLattice->f15, d_srcLattice->f16, d_srcLattice->f17, d_srcLattice->f18};
+    for (int i = 0; i < LBM_Q; i++) {
+        (srcRefs[i])[ind] = d_feqInit[i];
+    }
 }
 
 /**
@@ -554,7 +448,7 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     h_numPolys = data.numPolys;
     h_numParticles = numParticles;
     h_verts = data.verts;
-    h_snowGravNumBlocks = ceil(h_numParticles/(SNOW_GRAV_BLOCK_SIZE*SNOW_GRAV_BATCH_SIZE*1.0)); // TODO: mem access block size (256) dictates snow batch size
+    h_snowForcesNumBlocks = ceil(h_numParticles/(SNOW_FORCES_BLOCK_SIZE*SNOW_FORCES_BATCH_SIZE*1.0));
     h_snowUpdateNumBlocks = ceil(h_numParticles/(SNOW_UPDATE_BLOCK_SIZE*1.0));
     h_snowflakeData = data.snowflakeData;
     h_lbmBlockSize = dim3(latticeRes, 1, 1);
@@ -592,11 +486,6 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     cudaMemcpy(d_snowOffsets, h_snowOffsets, 5*h_numParticles*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_numParticles, &h_numParticles, sizeof(unsigned), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(d_extents, h_extents, 6*sizeof(float));
-
-    // free
-    cudaFreeHost(h_snowflakeDataFlat);
-    cudaFreeHost(h_snowOffsets);
-    cudaFreeHost(h_extents);
 
     // init dest & src grids + velocities
     Lattice h_srcLattice; // TODO: better way to do this?
@@ -683,12 +572,22 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
     h_destLattice.f17 = destf17;
     h_destLattice.f18 = destf18;
     cudaMemcpy(d_destLattice, &h_destLattice, sizeof(Lattice), cudaMemcpyHostToDevice);
-    initLBMModel<<<1, 1>>>(d_srcLattice);
+    float *d_feqInitCpy;
+    cudaMalloc((void**)&d_feqInitCpy, LBM_Q*sizeof(float));
+    feqInitKernel<<<1, 1>>>(d_feqInitCpy);
+    cudaMemcpyToSymbol(d_feqInit, d_feqInitCpy, LBM_Q*sizeof(float));
+    initLBMModel<<<h_lbmGridSize, h_lbmBlockSize>>>(d_srcLattice);
     cudaMalloc((void**)&d_velocities, 3*latticeRes*latticeRes*latticeRes*sizeof(float));
+
+    // free
+    cudaFreeHost(h_snowflakeDataFlat);
+    cudaFreeHost(h_snowOffsets);
+    cudaFreeHost(h_extents);
+    cudaFree(d_feqInitCpy);
 
     // init rand
     cudaMalloc((void**)&d_globalState, h_numParticles*sizeof(curandState));
-    setupSnowRandState<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_globalState, time(NULL), d_numParticles);
+    setupSnowRandState<<<h_snowForcesNumBlocks,SNOW_FORCES_BLOCK_SIZE>>>(d_globalState, time(NULL), d_numParticles); // TODO: for 10000k particles rand broken
     cudaDeviceSynchronize();
 }
 
@@ -702,7 +601,7 @@ extern void snowUpdateGPU() {
     cudaDeviceSynchronize();
 
     // apply forces to snow
-    snowApplyGrav<<<h_snowGravNumBlocks,SNOW_GRAV_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, d_globalState, d_velocities);
+    snowApplyForces<<<h_snowForcesNumBlocks,SNOW_FORCES_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, d_globalState, d_velocities);
 
     // update snow verts
     snowUpdate<<<h_snowUpdateNumBlocks,SNOW_UPDATE_BLOCK_SIZE>>>(d_verts, d_snowOffsets, d_numParticles);
@@ -719,15 +618,4 @@ extern void snowUpdateGPU() {
     Lattice *swap = d_srcLattice;
     d_srcLattice = d_destLattice;
     d_destLattice = swap;
-}
-
-/**
- * Allocate memory via cudaMallocHost.
- * @param size - Size of the memory to allocate.
- * @return A pointer to the allocated data.
- */
-extern void* mallocGPU(size_t size) {
-    void *ptr;
-    cudaMallocHost((void**)&ptr, size);
-    return ptr;
 }

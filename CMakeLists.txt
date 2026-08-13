@@ -17,7 +17,8 @@ include_directories(include)
 # include GLAD
 include_directories(include/glad/include)
 
-set(SOURCE_FILES main.cpp include/glad/src/glad.c)
+set(SOURCE_FILES main.cpp include/glad/src/glad.c
+        util/Input.hpp)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES})
 
