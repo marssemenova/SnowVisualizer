@@ -99,18 +99,10 @@ public:
 		glBindVertexArray(vertexArrayID);
 
 		// gen snow
-		for (int x = 0; x < 3; x++) {
-			extents[x][0] += 1; // TODO: min/max
-			extents[x][1] -= 1; // TODO: min/max
-		}
 		if (whichAlg == EXPERIMENTAL_ALG) {
 			data = snowGenerator.generateSnowExperimental(numParticles, extents);
 		} else {
 			data = snowGenerator.generateSnowMoeslund(numParticles, extents);
-		}
-		for (int x = 0; x < 3; x++) {
-			extents[x][0] -= 1; // TODO: min/max
-			extents[x][1] += 1; // TODO: min/max
 		}
 		snowInitGPU(data, numParticles, extents, windVel, latticeRes, temp);
 

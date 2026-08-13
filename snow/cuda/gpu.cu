@@ -351,16 +351,16 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
         uz = uz*d_delta_x_phys/d_delta_t_phys;
         //printf("vel %f %f %f\n\n", ux, uy, uz);
 
-        checkX = d_snowflakeDataFlat[3*x] + ux <= d_extents[0]+1 || d_snowflakeDataFlat[3*x] + ux >= d_extents[1]-1;
-        checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY <= d_extents[2]+1 || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY >= d_extents[3]-1;
-        checkZ = d_snowflakeDataFlat[3*x+2] + uz <= d_extents[4]+1 || d_snowflakeDataFlat[3*x+2] + uz >= d_extents[5]-1;
+        checkX = d_snowflakeDataFlat[3*x] + ux <= d_extents[0] || d_snowflakeDataFlat[3*x] + ux >= d_extents[1];
+        checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY <= d_extents[2] || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY >= d_extents[3];
+        checkZ = d_snowflakeDataFlat[3*x+2] + uz <= d_extents[4] || d_snowflakeDataFlat[3*x+2] + uz >= d_extents[5];
 
         if (checkY) {
             localState = d_globalState[kernelInd];
-            xOffset = getRandFloatGPU(d_extents[0]+1, d_extents[1]-1, &localState) - d_snowflakeDataFlat[3*x];
+            xOffset = getRandFloatGPU(d_extents[0], d_extents[1], &localState) - d_snowflakeDataFlat[3*x];
             yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extents[3] - d_extents[2])), 0, &localState);
-            yOffset = max(d_extents[2]+1, d_extents[3]-1) + yOffsetRand- d_snowflakeDataFlat[3*x+1];
-            zOffset = getRandFloatGPU(d_extents[4]+1, d_extents[5]-1, &localState) - d_snowflakeDataFlat[3*x+2];
+            yOffset = max(d_extents[2], d_extents[3]) + yOffsetRand- d_snowflakeDataFlat[3*x+1];
+            zOffset = getRandFloatGPU(d_extents[4], d_extents[5], &localState) - d_snowflakeDataFlat[3*x+2];
             d_globalState[kernelInd] = localState;
         } else {
             xOffset = checkX ? -ux : ux;
