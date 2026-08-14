@@ -170,8 +170,6 @@ public:
 	 * @param P - Projection matrix.
 	 */
 	void draw(glm::vec3 lightPos, glm::mat4 M, glm::mat4 V, glm::mat4 P) {
-		updateSnow();
-
 		glm::mat4 MVP = P*V*M;
 		glBindVertexArray(vertexArrayID);
 		glUseProgram(programID);

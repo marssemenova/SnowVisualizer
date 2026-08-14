@@ -5,7 +5,6 @@
  * @author Mars Semenova, Dr. Alexander Brandt
  */
 
-#include <chrono>
 #include <thread>
 
 #include "util/Constants.hpp"
@@ -15,6 +14,7 @@
 
 #include "snow/SnowRenderer.hpp"
 #include "util/Input.hpp"
+#include "util/CPUTimer.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -53,7 +53,7 @@ int main() {
     float screenW = SCR_WIDTH;
     float screenH = SCR_HEIGHT;
     GLenum err;
-    windVel = (windVel / 3.6f); // km/h > cm/s
+    windVel = (windVel / 3.6f); // km/h > m/s
 
     // ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
@@ -62,10 +62,10 @@ int main() {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     // set up rendering vars
-    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), screenW/screenH, 0.001f, 1000.0f);
+    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), screenW/screenH, 0.001f, zFarClip);
     glm::vec3 eye;
     if (whichCam == GLOBE_CAM) {
-        eye= {0.0f, 3.0f, 5.0f};
+        eye= {0.0f, 50.0f, 100.0f};
     } else {
         eye = {0.0f, 0.0f, 400.0f};
     }
@@ -85,14 +85,29 @@ int main() {
     GLfloat extents[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
     SnowRenderer snowGen(numParticles, extents, temp, EXPERIMENTAL_ALG, windVel, latticeRes);
 
+    GLfloat axlength = 25.0f;
+    glm::vec3 origin(0.0f, 0.0f, 0.0f);
+    glm::vec3 ax_ext(axlength, axlength, axlength);
+    glm::mat4 m_axes(1.0f);
+    Axes ax(origin, ax_ext);
+
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     do {
+
+        time_point updateStart = startTimer();
+        snowGen.updateSnow(); //includes simulation + vertex copy to OGL
+        time_point updateEnd = stopTimer();
+        float updateTime = elapsedTime(updateStart, updateEnd);
+        printf("update time: %f\n", updateTime);
+
+        time_point renderStart = startTimer();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
+        ax.draw(m_axes, V, Projection);
         snowGen.draw(lightpos, MSnow, V, Projection);
 
         if (whichCam == GLOBE_CAM) {
@@ -109,8 +124,13 @@ int main() {
         // swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
-        //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        time_point renderEnd = stopTimer();
+
+        float renderTime = elapsedTime(renderStart, renderEnd);
+        printf("render time: %f\n", renderTime);
+        // std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
+
     // check if the ESC key was pressed or the window was closed
     while (glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);
 

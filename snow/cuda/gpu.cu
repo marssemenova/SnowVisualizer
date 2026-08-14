@@ -19,7 +19,7 @@ using namespace std;
 
 #define TEST true
 
-#define GRAVITY -0.981f
+#define GRAVITY -9.81f*10.0f
 #define SNOW_NOISE_Y 0.1f
 
 #define LBM_Q 19
@@ -232,9 +232,12 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
  * Stores result in globalState[tid]. // TODO: params
  */
 __global__ void setupSnowRandState(curandState* d_globalState, uint64_t seed, unsigned *d_numParticles) {
-    int tid = threadIdx.x  + blockDim.x * blockIdx.x;
-    if (tid < *d_numParticles) {
-        curand_init(seed, tid, 0, &d_globalState[tid]);
+    unsigned kernelInd = blockIdx.x*SNOW_FORCES_BLOCK_SIZE*SNOW_FORCES_BATCH_SIZE + threadIdx.x;
+    unsigned stride = SNOW_FORCES_BLOCK_SIZE;
+    for (int x = kernelInd; x < min(kernelInd + SNOW_FORCES_BATCH_SIZE*stride, *d_numParticles); x+=stride) {
+        if (x < *d_numParticles) {
+            curand_init(seed, x, 0, &d_globalState[x]);
+        }
     }
 }
 
@@ -352,19 +355,19 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
         //printf("vel %f %f %f\n\n", ux, uy, uz);
 
         checkX = d_snowflakeDataFlat[3*x] + ux <= d_extents[0] || d_snowflakeDataFlat[3*x] + ux >= d_extents[1];
-        checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY <= d_extents[2] || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY >= d_extents[3];
+        checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY*d_delta_t_phys <= d_extents[2] || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY*d_delta_t_phys >= d_extents[3];
         checkZ = d_snowflakeDataFlat[3*x+2] + uz <= d_extents[4] || d_snowflakeDataFlat[3*x+2] + uz >= d_extents[5];
 
         if (checkY) {
-            localState = d_globalState[kernelInd];
+            localState = d_globalState[x];
             xOffset = getRandFloatGPU(d_extents[0], d_extents[1], &localState) - d_snowflakeDataFlat[3*x];
             yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extents[3] - d_extents[2])), 0, &localState);
             yOffset = max(d_extents[2], d_extents[3]) + yOffsetRand- d_snowflakeDataFlat[3*x+1];
             zOffset = getRandFloatGPU(d_extents[4], d_extents[5], &localState) - d_snowflakeDataFlat[3*x+2];
-            d_globalState[kernelInd] = localState;
+            d_globalState[x] = localState;
         } else {
             xOffset = checkX ? -ux : ux;
-            yOffset = uy + GRAVITY;
+            yOffset = uy + GRAVITY*d_delta_t_phys;
             zOffset = checkZ ? -uz : uz;
         }
         // update x
@@ -402,6 +405,7 @@ __global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_num
 }
 
 __global__ void feqInitKernel(float *feqInitCpy) {
+//    float velocity[] = {-d_windVel, 0, -d_windVel};
     float velocity[] = {d_windVel, 0, d_windVel};
     float feq[LBM_Q];
     float t3 = velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2];
