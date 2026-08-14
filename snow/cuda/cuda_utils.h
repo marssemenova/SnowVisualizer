@@ -7,6 +7,8 @@
 #ifndef CUDA_UTILS_H
 #define CUDA_UTILS_H
 
+float lbmTime, lbmTimeTot = 0, forcesTime, forcesTimeTot = 0, updateTime, updateTimeTot = 0, cpyTime, cpyTimeTot = 0;
+
 /**
  * Generate a floating point number in the range (min,max].
  * Note curand_uniform returns numbers in the  range (0.0, 1.0]. // TODO: params

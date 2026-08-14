@@ -14,10 +14,9 @@
 using namespace std;
 
 #include "../SnowGeneratorData.hpp"
+#include "../../util/CPUTimer.hpp"
 #include "cuda_errors.h"
 #include "cuda_utils.h"
-
-#define TEST true
 
 #define GRAVITY -9.81f*10.0f
 #define SNOW_NOISE_Y 0.1f
@@ -593,19 +592,83 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
  * Update snow on the GPU via kernel calls.
  */
 extern void snowUpdateGPU() {
+    frameCount++;
     // dispatch kernels
     // LBM
+    time_point lbmStart;
+    if (PROFILING) {
+        lbmStart = startTimer();
+    }
     lbmKernel<<<h_lbmGridSize, h_lbmBlockSize>>>(d_srcLattice, d_destLattice, d_velocities);
-    cudaDeviceSynchronize();
+    if (PROFILING) {
+        cudaDeviceSynchronize();
+        time_point lbmEnd = stopTimer();
+        float lbmTime = elapsedTime(lbmStart, lbmEnd);
+        //printf("%d: LBM time: %f\n", frameCount, lbmTime);
+        lbmTimeTot += lbmTime;
+    }
 
     // apply forces to snow
+    time_point forcesStart;
+    if (PROFILING) {
+        forcesStart = startTimer();
+    }
     snowApplyForces<<<h_snowForcesNumBlocks,SNOW_FORCES_BLOCK_SIZE>>>(d_snowflakeDataFlat, d_numParticles, d_snowOffsets, d_globalState, d_velocities);
+    if (PROFILING) {
+        cudaDeviceSynchronize();
+        time_point forcesEnd = stopTimer();
+        float forcesTime = elapsedTime(forcesStart, forcesEnd);
+        //printf("%d: dorces time: %f\n", frameCount, forcesTime);
+        forcesTimeTot += forcesTime;
+    }
 
     // update snow verts
+    time_point updateStart;
+    if (PROFILING) {
+        updateStart = startTimer();
+    }
     snowUpdate<<<h_snowUpdateNumBlocks,SNOW_UPDATE_BLOCK_SIZE>>>(d_verts, d_snowOffsets, d_numParticles);
+    if (PROFILING) {
+        cudaDeviceSynchronize();
+        time_point updateEnd = stopTimer();
+        float updateTime = elapsedTime(updateStart, updateEnd);
+        //printf("%d: update time: %f\n", frameCount, updateTime);
+        updateTimeTot += updateTime;
+        if (frameCount >= NUM_FRAMES) {
+            printf(">>> avged LBM time: %f\n", lbmTimeTot/NUM_FRAMES);
+            lbmTimeTot = 0;
+            printf(">>> avged forces time: %f\n", forcesTimeTot/NUM_FRAMES);
+            forcesTimeTot = 0;
+            printf(">>> avged update time: %f\n", updateTimeTot/NUM_FRAMES);
+            updateTimeTot = 0;
+            frameCount = 0;
+        }
+    }
 
     // fetch work
+    time_point cpyStart;
+    if (PROFILING) {
+        cpyStart = startTimer();
+    }
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
+    if (PROFILING) {
+        cudaDeviceSynchronize();
+        time_point cpyEnd = stopTimer();
+        cpyTime = elapsedTime(cpyStart, cpyEnd);
+        //printf("%d: copy time: %f\n", frameCount, cpyTime);
+        cpyTimeTot += cpyTime;
+        if (frameCount >= NUM_FRAMES) {
+            printf(">>> avged LBM time: %f\n", lbmTimeTot/NUM_FRAMES);
+            lbmTimeTot = 0;
+            printf(">>> avged forces time: %f\n", forcesTimeTot/NUM_FRAMES);
+            forcesTimeTot = 0;
+            printf(">>> avged update time: %f\n", updateTimeTot/NUM_FRAMES);
+            updateTimeTot = 0;
+            printf(">>> avged copy time: %f\n", cpyTimeTot/NUM_FRAMES);
+            cpyTimeTot = 0;
+            frameCount = 0;
+        }
+    }
 
     // swap grids
     Lattice *swap = d_srcLattice;

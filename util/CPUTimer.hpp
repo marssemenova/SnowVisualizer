@@ -8,7 +8,13 @@
 
 #include <chrono>
 
+#define PROFILING true // used for timing
+#define NUM_FRAMES 100
+
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> time_point;
+
+
+static int frameCount = 0;
 
 static inline time_point startTimer() {
 	return std::chrono::high_resolution_clock::now();

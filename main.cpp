@@ -90,15 +90,27 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    time_point renderStart, totStart;
+
+    float gpuTime, gpuTimeTot = 0, renderTime, renderTimeTot = 0, totTime, totTimeTot = 0;
     do {
+        frameCount++;
+        if (PROFILING) {
+            totStart = startTimer();
+            time_point gpuStart = startTimer();
+            snowGen.updateSnowGPUTimed();
+            time_point gpuEnd = stopTimer();
+            gpuTime = elapsedTime(gpuStart, gpuEnd);
+            //printf("%d: gpu time: %f\n", frameCount, gpuTime);
+            gpuTimeTot += gpuTime;
+        } else {
+            snowGen.updateSnow();
+        }
 
-        time_point updateStart = startTimer();
-        snowGen.updateSnow(); //includes simulation + vertex copy to OGL
-        time_point updateEnd = stopTimer();
-        float updateTime = elapsedTime(updateStart, updateEnd);
-        printf("update time: %f\n", updateTime);
-
-        time_point renderStart = startTimer();
+        if (PROFILING) {
+            renderStart = startTimer();
+            snowGen.updateSnowTimed();
+        }
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
         snowGen.draw(lightpos, MSnow, V, Projection);
@@ -117,10 +129,27 @@ int main() {
         // swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
-        time_point renderEnd = stopTimer();
 
-        float renderTime = elapsedTime(renderStart, renderEnd);
-        printf("render time: %f\n", renderTime);
+        if (PROFILING) {
+            time_point renderEnd = stopTimer();
+            renderTime = elapsedTime(renderStart, renderEnd);
+            //printf("%d: render time: %f\n", frameCount, renderTime);
+            renderTimeTot += renderTime;
+            time_point totEnd = stopTimer();
+            totTime = elapsedTime(totStart, totEnd);
+            //printf("%d: tot time: %f\n", frameCount, totTime);
+            totTimeTot += totTime;
+            if (frameCount >= NUM_FRAMES) {
+                printf(">>> avged gpu time: %f\n", gpuTimeTot/NUM_FRAMES);
+                gpuTimeTot = 0;
+                printf(">>> avged render time: %f\n", renderTimeTot/NUM_FRAMES);
+                renderTimeTot = 0;
+                printf(">>> avged tot time: %f\n", totTimeTot/NUM_FRAMES);
+                totTimeTot = 0;
+                frameCount = 0;
+            }
+        }
+
         // std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 

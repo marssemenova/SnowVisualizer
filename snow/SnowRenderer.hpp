@@ -163,6 +163,22 @@ public:
 	}
 
 	/**
+	 * Update snow positions on the GPU. Split up variant for timing purposes.
+	 */
+	void updateSnowGPUTimed() {
+		snowUpdateGPU();
+	}
+
+	/**
+	 * Update snow positions on the GPU. Split up variant for timing purposes.
+	 */
+	void updateSnowTimed() {
+		glBindVertexArray(vertexArrayID);
+		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.numPolys * 9, data.verts, GL_DYNAMIC_DRAW);
+	}
+
+	/**
 	 * Draw function.
 	 * @param lightPos - Position of the light source.
 	 * @param M - Model (transformation) matrix.
