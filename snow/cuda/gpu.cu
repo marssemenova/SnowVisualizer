@@ -76,7 +76,6 @@ unsigned h_numParticles;
 
 // dev vars
 __constant__ __device__ float d_extents[6];
-__constant__ __device__ float d_tau;
 __constant__ __device__ float d_delta_x_phys;
 __constant__ __device__ float d_delta_t_phys;
 __constant__ __device__ unsigned d_N;
@@ -352,7 +351,6 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
         ux = ux*d_delta_x_phys/d_delta_t_phys;
         uy = uy*d_delta_x_phys/d_delta_t_phys;
         uz = uz*d_delta_x_phys/d_delta_t_phys;
-        //printf("vel %f %f %f\n\n", ux, uy, uz);
 
         checkX = d_snowflakeDataFlat[3*x] + ux <= d_extents[0] || d_snowflakeDataFlat[3*x] + ux >= d_extents[1];
         checkY = d_snowflakeDataFlat[3*x+1] + uy + GRAVITY*d_delta_t_phys <= d_extents[2] || d_snowflakeDataFlat[3*x+1] + uy + GRAVITY*d_delta_t_phys >= d_extents[3];
@@ -405,7 +403,6 @@ __global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_num
 }
 
 __global__ void feqInitKernel(float *feqInitCpy) {
-//    float velocity[] = {-d_windVel, 0, -d_windVel};
     float velocity[] = {d_windVel, 0, d_windVel};
     float feq[LBM_Q];
     float t3 = velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2];
@@ -442,11 +439,8 @@ __global__ void initLBMModel(Lattice *d_srcLattice) {
  * parameter has no effect and the snow particle is generated at the origin.
  */
 extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float extents[3][2], float windVel, unsigned latticeRes, float temp) {
-    // validate model
-    if (!isLBMModelValid(extents, windVel, latticeRes, temp)) { // TODO
-        printf("Invalid model parameters\n");
-        // exit(-1); TODO
-    }
+    // set model params
+    setLBMModelParams(extents, windVel, latticeRes, temp);
 
     // save refs
     h_numPolys = data.numPolys;
@@ -591,7 +585,7 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
 
     // init rand
     cudaMalloc((void**)&d_globalState, h_numParticles*sizeof(curandState));
-    setupSnowRandState<<<h_snowForcesNumBlocks,SNOW_FORCES_BLOCK_SIZE>>>(d_globalState, time(NULL), d_numParticles); // TODO: for 10000k particles rand broken
+    setupSnowRandState<<<h_snowForcesNumBlocks,SNOW_FORCES_BLOCK_SIZE>>>(d_globalState, time(NULL), d_numParticles);
     cudaDeviceSynchronize();
 }
 
@@ -612,11 +606,6 @@ extern void snowUpdateGPU() {
 
     // fetch work
     cudaMemcpy(h_verts, d_verts, h_numPolys*9*sizeof(float), cudaMemcpyDeviceToHost);
-
-    // TODO: rem
-   // printLattice<<<1,1>>>(d_srcLattice);
-   // printVelocities<<<1,1>>>(d_velocities);
-   // printf("\n\n\n\n");
 
     // swap grids
     Lattice *swap = d_srcLattice;

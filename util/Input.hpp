@@ -11,13 +11,9 @@
 // temp input vars (TODO: get from CLI args)
 // snow
 unsigned numParticles = 10000;
-unsigned whichCam = GLOBE_CAM;
-// unsigned whichCam = FIRST_PERSON_CAM;
+unsigned whichCam = FIRST_PERSON_CAM;
 float zFarClip = 1000;
-float simExtents = 100.0;
-float minX = -simExtents, maxX = simExtents;
-float minY = -simExtents, maxY = simExtents;
-float minZ = -simExtents, maxZ = simExtents;
+float minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
 float temp = -5.0;
 
 // wind

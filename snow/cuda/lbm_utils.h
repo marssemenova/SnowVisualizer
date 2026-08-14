@@ -26,7 +26,7 @@ __global__ void printVelocities(float *d_velocities) {
     }
     printf("\n");
 }
-`
+
 __device__ int getInd(int x, int y, int z) {
     return x + y * d_N + z * d_N*d_N;
 }
@@ -36,23 +36,17 @@ __device__ int getInd(int pos[3]) {
 }
 
 // TODO
-bool isLBMModelValid(float h_extents[3][2], float h_windVel, unsigned h_N, float h_temp) {
-    float h_viscosity_phys = 0.000012890; // m^2/s from temp (-5) (https://theengineeringmindset.com/properties-of-air-at-atmospheric-pressure/) TODO
+void setLBMModelParams(float h_extents[3][2], float h_windVel, unsigned h_N, float h_temp) {
     float h_cs_phys =  328.25; // m/s from temp (-5) (https://en.wikipedia.org/wiki/Speed_of_sound)
     float h_delta_x_phys = abs(h_extents[0][1]-h_extents[0][0])/h_N;
     float h_delta_t_phys = (LBM_C_S/h_cs_phys)*h_delta_x_phys;
-    float h_tau = 3*(h_viscosity_phys*(h_delta_t_phys/(h_delta_x_phys*h_delta_x_phys))) + (0.5f);
-    printf("%f %f %f\n", h_delta_x_phys, h_delta_t_phys, h_tau);
     float h_windVel_lbm = h_windVel*(h_delta_t_phys/h_delta_x_phys);
 
-    // if valid write to dev
-    cudaMemcpyToSymbol(d_tau, &h_tau, sizeof(float));
+    // write to dev
     cudaMemcpyToSymbol(d_delta_x_phys, &h_delta_x_phys, sizeof(float));
     cudaMemcpyToSymbol(d_delta_t_phys, &h_delta_t_phys, sizeof(float));
     cudaMemcpyToSymbol(d_N, &h_N, sizeof(unsigned));
     cudaMemcpyToSymbol(d_windVel, &h_windVel_lbm, sizeof(float));
-
-    return false; // TODO: rem
 }
 
 #endif

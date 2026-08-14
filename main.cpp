@@ -85,12 +85,6 @@ int main() {
     GLfloat extents[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
     SnowRenderer snowGen(numParticles, extents, temp, EXPERIMENTAL_ALG, windVel, latticeRes);
 
-    GLfloat axlength = 25.0f;
-    glm::vec3 origin(0.0f, 0.0f, 0.0f);
-    glm::vec3 ax_ext(axlength, axlength, axlength);
-    glm::mat4 m_axes(1.0f);
-    Axes ax(origin, ax_ext);
-
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glEnable(GL_BLEND);
@@ -107,7 +101,6 @@ int main() {
         time_point renderStart = startTimer();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
-        ax.draw(m_axes, V, Projection);
         snowGen.draw(lightpos, MSnow, V, Projection);
 
         if (whichCam == GLOBE_CAM) {
