@@ -82,7 +82,7 @@ int main() {
     glm::vec3 lightpos(0.0f, 10.0f, -10.0f);
 
     // setup snow gen obj
-    GLfloat extents[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
+    float extents[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
     SnowRenderer snowGen(numParticles, extents, temp, EXPERIMENTAL_ALG, windVel, latticeRes);
 
     glEnable(GL_DEPTH_TEST);
@@ -133,18 +133,17 @@ int main() {
         if (PROFILING) {
             time_point renderEnd = stopTimer();
             renderTime = elapsedTime(renderStart, renderEnd);
-            //printf("%d: render time: %f\n", frameCount, renderTime);
             renderTimeTot += renderTime;
             time_point totEnd = stopTimer();
             totTime = elapsedTime(totStart, totEnd);
-            //printf("%d: tot time: %f\n", frameCount, totTime);
             totTimeTot += totTime;
             if (frameCount >= NUM_FRAMES) {
-                printf(">>> avged gpu time: %f\n", gpuTimeTot/NUM_FRAMES);
+                printf("GPU time over %d frames: %fms\n", NUM_FRAMES, gpuTimeTot/NUM_FRAMES);
                 gpuTimeTot = 0;
-                printf(">>> avged render time: %f\n", renderTimeTot/NUM_FRAMES);
+                printf("Render time over %d frames: %fms\n", NUM_FRAMES, renderTimeTot/NUM_FRAMES);
                 renderTimeTot = 0;
-                printf(">>> avged tot time: %f\n", totTimeTot/NUM_FRAMES);
+                printf("Total time over %d frames: %fms\n", NUM_FRAMES, totTimeTot/NUM_FRAMES);
+                printf("--------------------------\n");
                 totTimeTot = 0;
                 frameCount = 0;
             }

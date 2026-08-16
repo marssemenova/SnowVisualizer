@@ -9,8 +9,8 @@
 #define CAMERA_CONTROLS_HPP
 
 // cam enums
-const GLuint GLOBE_CAM = 1;
-const GLuint FIRST_PERSON_CAM = 2;
+const unsigned GLOBE_CAM = 1;
+const unsigned FIRST_PERSON_CAM = 2;
 
 void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     glm::vec3 targ = {0.0f, 0.0f, 0.0f};
@@ -18,7 +18,7 @@ void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     static float radiusFromOrigin = glm::length(eye);
 
     static glm::vec3 position = eye;
-    static GLfloat phi = 1*3.14159f - acos(eye.y/radiusFromOrigin);
+    static double phi = 1*3.14159f - acos(eye.y/radiusFromOrigin);
 
     // theta based on +/- x and z
     float thetaVal = 0;
@@ -34,7 +34,7 @@ void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
     if (eye.x >= 0 && eye.z < 0) {
         thetaVal = -acos(eye.x/(radiusFromOrigin*sin(phi)));
     }
-    static GLfloat theta = thetaVal;
+    static double theta = thetaVal;
 
     static double mouseDownX;
     static double mouseDownY;
@@ -105,7 +105,7 @@ void cameraControlsGlobe(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
 }
 
 void cameraControlsFirstPerson(glm::mat4& V, glm::vec3 eye, GLFWwindow* window) {
-    static GLfloat theta = glm::radians(-90.0f);
+    static double theta = glm::radians(-90.0f);
     static glm::vec3 position = eye;
     double currentTime = glfwGetTime();
     static double lastTime = glfwGetTime();

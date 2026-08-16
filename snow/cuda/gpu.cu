@@ -604,7 +604,6 @@ extern void snowUpdateGPU() {
         cudaDeviceSynchronize();
         time_point lbmEnd = stopTimer();
         float lbmTime = elapsedTime(lbmStart, lbmEnd);
-        //printf("%d: LBM time: %f\n", frameCount, lbmTime);
         lbmTimeTot += lbmTime;
     }
 
@@ -618,7 +617,6 @@ extern void snowUpdateGPU() {
         cudaDeviceSynchronize();
         time_point forcesEnd = stopTimer();
         float forcesTime = elapsedTime(forcesStart, forcesEnd);
-        //printf("%d: dorces time: %f\n", frameCount, forcesTime);
         forcesTimeTot += forcesTime;
     }
 
@@ -632,17 +630,7 @@ extern void snowUpdateGPU() {
         cudaDeviceSynchronize();
         time_point updateEnd = stopTimer();
         float updateTime = elapsedTime(updateStart, updateEnd);
-        //printf("%d: update time: %f\n", frameCount, updateTime);
         updateTimeTot += updateTime;
-        if (frameCount >= NUM_FRAMES) {
-            printf(">>> avged LBM time: %f\n", lbmTimeTot/NUM_FRAMES);
-            lbmTimeTot = 0;
-            printf(">>> avged forces time: %f\n", forcesTimeTot/NUM_FRAMES);
-            forcesTimeTot = 0;
-            printf(">>> avged update time: %f\n", updateTimeTot/NUM_FRAMES);
-            updateTimeTot = 0;
-            frameCount = 0;
-        }
     }
 
     // fetch work
@@ -655,16 +643,15 @@ extern void snowUpdateGPU() {
         cudaDeviceSynchronize();
         time_point cpyEnd = stopTimer();
         cpyTime = elapsedTime(cpyStart, cpyEnd);
-        //printf("%d: copy time: %f\n", frameCount, cpyTime);
         cpyTimeTot += cpyTime;
         if (frameCount >= NUM_FRAMES) {
-            printf(">>> avged LBM time: %f\n", lbmTimeTot/NUM_FRAMES);
+            printf("LBM kernel time over %d frames: %fms\n", NUM_FRAMES, lbmTimeTot/NUM_FRAMES);
             lbmTimeTot = 0;
-            printf(">>> avged forces time: %f\n", forcesTimeTot/NUM_FRAMES);
+            printf("Snow particle update kernel time over %d frames: %fms\n", NUM_FRAMES, forcesTimeTot/NUM_FRAMES);
             forcesTimeTot = 0;
-            printf(">>> avged update time: %f\n", updateTimeTot/NUM_FRAMES);
+            printf("Vertices update kernel time over %d frames: %fms\n", NUM_FRAMES, updateTimeTot/NUM_FRAMES);
             updateTimeTot = 0;
-            printf(">>> avged copy time: %f\n", cpyTimeTot/NUM_FRAMES);
+            printf("GPU to CPU copy time over %d frames: %fms\n", NUM_FRAMES, cpyTimeTot/NUM_FRAMES);
             cpyTimeTot = 0;
             frameCount = 0;
         }
