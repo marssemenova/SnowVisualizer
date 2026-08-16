@@ -67,7 +67,7 @@ int main() {
     if (whichCam == GLOBE_CAM) {
         eye= {0.0f, 50.0f, 100.0f};
     } else {
-        eye = {0.0f, 0.0f, 400.0f};
+        eye = {0.0f, 0.0f, 150.0f};
     }
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     glm::vec3 center = {0.0f, 0.0f, 0.0f};

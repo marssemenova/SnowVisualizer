@@ -25,7 +25,6 @@ using namespace std;
 #define LBM_C 1.0 // from speed of sounds = 1/sqrt(3)
 #define LBM_C_S 1.0/sqrt(3) // from speed of sounds = 1/sqrt(3)
 #define LBM_M_MAX 0.1
-#define LBM_TAU 0.55 // TODO: rem
 __constant__ static const int D_LATTICE_VELOCITIES[19][3] = { {0,0,0},
     {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
     {1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}, {1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1}, {0,1,1}, {0,1,-1},  {0,-1,1},  {0,-1,-1}};
@@ -78,6 +77,7 @@ __constant__ __device__ float d_extents[6];
 __constant__ __device__ float d_delta_x_phys;
 __constant__ __device__ float d_delta_t_phys;
 __constant__ __device__ unsigned d_N;
+__constant__ __device__ float d_tau;
 __constant__ __device__ float d_windVel;
 __constant__ __device__ float d_feqInit[LBM_Q];
 float *d_verts;
@@ -119,7 +119,7 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
 
     if (x == 0) { // inlet for dynamic wind
         for (int i = 0; i < LBM_Q; i++) {
-            (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - d_feqInit[i])/LBM_TAU;
+            (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - d_feqInit[i])/d_tau;
         }
         return;
     }
@@ -221,7 +221,7 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
 
     // calc distro func (f_qi) at new time step + save 19 vals of distro func (f_qi) to curr cell
     for (int i = 0; i < LBM_Q; i++) {
-        (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - feq[i])/LBM_TAU;
+        (destRefs[i])[ind] = (destRefs[i])[ind] - ((destRefs[i])[ind] - feq[i])/d_tau;
     }
 }
 
@@ -271,7 +271,7 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
     float yOffsetRand;
     bool checkX, checkY, checkZ;
     float x_phys, y_phys, z_phys, x_lat, y_lat, z_lat;
-    float x_phys_offset = min(d_extents[0], d_extents[1]), y_phys_offset = min(d_extents[2], d_extents[3]), z_phys_offset = min(d_extents[4], d_extents[5]);
+    float x_phys_offset = d_extents[0], y_phys_offset = d_extents[2], z_phys_offset = d_extents[4];
     float dx, dy, dz;
     float u_x0[3], u_x1[3], u_x2[3], u_x3[3], u_x4[3], u_x5[3], u_x6[3], u_x7[3];
     float ux, uy, uz;
@@ -359,7 +359,7 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
             localState = d_globalState[x];
             xOffset = getRandFloatGPU(d_extents[0], d_extents[1], &localState) - d_snowflakeDataFlat[3*x];
             yOffsetRand = getRandFloatGPU(-(SNOW_NOISE_Y*(d_extents[3] - d_extents[2])), 0, &localState);
-            yOffset = max(d_extents[2], d_extents[3]) + yOffsetRand- d_snowflakeDataFlat[3*x+1];
+            yOffset = d_extents[3] + yOffsetRand- d_snowflakeDataFlat[3*x+1];
             zOffset = getRandFloatGPU(d_extents[4], d_extents[5], &localState) - d_snowflakeDataFlat[3*x+2];
             d_globalState[x] = localState;
         } else {
@@ -438,6 +438,16 @@ __global__ void initLBMModel(Lattice *d_srcLattice) {
  * parameter has no effect and the snow particle is generated at the origin.
  */
 extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float extents[3][2], float windVel, unsigned latticeRes, float temp) {
+    // format extents
+    float tempExt;
+    for (int x = 0; x < 3; x++) {
+        if (extents[x][0] > extents[x][1]) {
+            tempExt = extents[x][1];
+            extents[x][1] = extents[x][0];
+            extents[x][0] = tempExt;
+        }
+    }
+
     // set model params
     setLBMModelParams(extents, windVel, latticeRes, temp);
 

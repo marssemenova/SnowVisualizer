@@ -40,12 +40,14 @@ void setLBMModelParams(float h_extents[3][2], float h_windVel, unsigned h_N, flo
     float h_cs_phys =  328.25; // m/s from temp (-5) (https://en.wikipedia.org/wiki/Speed_of_sound)
     float h_delta_x_phys = abs(h_extents[0][1]-h_extents[0][0])/h_N;
     float h_delta_t_phys = (LBM_C_S/h_cs_phys)*h_delta_x_phys;
+    float h_tau = 0.55;
     float h_windVel_lbm = h_windVel*(h_delta_t_phys/h_delta_x_phys);
 
     // write to dev
     cudaMemcpyToSymbol(d_delta_x_phys, &h_delta_x_phys, sizeof(float));
     cudaMemcpyToSymbol(d_delta_t_phys, &h_delta_t_phys, sizeof(float));
     cudaMemcpyToSymbol(d_N, &h_N, sizeof(unsigned));
+    cudaMemcpyToSymbol(d_tau, &h_tau, sizeof(float));
     cudaMemcpyToSymbol(d_windVel, &h_windVel_lbm, sizeof(float));
 }
 

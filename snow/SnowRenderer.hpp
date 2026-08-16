@@ -57,9 +57,35 @@ public:
 	 * @param latticeRes - Lattice resolution used in the LBM for the wind field.
 	 */
 	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp, unsigned whichAlg, float windVel, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), windVel(windVel), latticeRes(latticeRes) {
-		// set vars
-		// TODO: clamp extents
+		// copy + clamp extents
 		memcpy(extents, extentsInp, 6*sizeof(float));
+		float xExt = abs(extents[0][1]-extents[0][0]);
+		float yExt = abs(extents[1][0]-extents[1][1]);
+		float zExt = abs(extents[2][0]-extents[2][1]);
+		if (xExt != yExt || xExt != zExt) {
+			float minExtent = std::min(std::min(xExt, yExt), zExt);
+			if (xExt != minExtent) {
+				if (extents[0][0] < extents[0][1]) {
+					extents[0][1] = extents[0][0] + minExtent;
+				} else {
+					extents[0][0] = extents[0][1] + minExtent;
+				}
+			}
+			if (yExt != minExtent) {
+				if (extents[1][0] < extents[1][1]) {
+					extents[1][1] = extents[1][0] + minExtent;
+				} else {
+					extents[1][0] = extents[1][1] + minExtent;
+				}
+			}
+			if (zExt != minExtent) {
+				if (extents[2][0] < extents[2][1]) {
+					extents[2][1] = extents[2][0] + minExtent;
+				} else {
+					extents[2][0] = extents[2][1] + minExtent;
+				}
+			}
+		}
 
 		// create generator
 		snowGenerator = SnowGenerator(temp);
