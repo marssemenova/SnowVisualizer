@@ -22,8 +22,8 @@
 #include "../util/Util.hpp"
 
 // def vals
-const unsigned DEFAULT_SNOW_COUNT = 100;
-const float DEFAULT_TEMP = -15.0; // C
+const unsigned DEFAULT_SNOW_COUNT = 10000;
+const float DEFAULT_TEMP = -5.0; // C
 const float DEFAULT_EXTENTS[3][2] = {{-100, 100}, {-100, 100}, {-100, 100}}; // x range, y range, z range
 
 // consts

@@ -10,7 +10,7 @@
 
 // dev params
 // profiling (note: recompile CUDA if changed)
-static const bool PROFILING = true;
+static const bool PROFILING = false;
 static const unsigned NUM_FRAMES = 100;
 
 #endif

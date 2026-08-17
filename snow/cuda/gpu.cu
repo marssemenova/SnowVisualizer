@@ -275,6 +275,17 @@ __device__ void calcVelocity(int pos[3], float* d_velocities, float velocity[3])
 }
 
 /**
+ * Helper function to clamp the xi used in the linear interpolation of snow particles to lattice points
+ * within the boundaries of the lattice.
+ * @param xPos - A float[3] containing the xi's 3D coordinates in lattice space in the form {x, y, z}.
+ */
+__device__ void clampInterpolation(int xPos[3]) {
+    for (int x = 0; x < 3; x++) {
+        xPos[x] = xPos[x] < d_N ? xPos[x] : d_N-1;
+    }
+}
+
+/**
  * Kernel which applies forces, gravity and wind, to snow particles and stores the offset.
  * @param d_snowflakeDataFlat - Flattened snowflake data. Every 3 elements correspond
  * to a snow particle's coordinates.
@@ -321,7 +332,15 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
             x4[0] = x_lat_int, x4[1] = y_lat_int + 1, x4[2] = z_lat_int + 1;
             x5[0] = x_lat_int + 1, x5[1] = y_lat_int, x5[2] = z_lat_int + 1;
             x6[0] = x_lat_int + 1, x6[1] = y_lat_int + 1, x6[2] = z_lat_int;
-            x7[0] = x_lat_int + 1, x7[1] = y_lat_int + 1, x7[2] = z_lat_int + 1; // note: removed clamping, hopefully no consequences
+            x7[0] = x_lat_int + 1, x7[1] = y_lat_int + 1, x7[2] = z_lat_int + 1;
+            clampInterpolation(x0);
+            clampInterpolation(x1);
+            clampInterpolation(x2);
+            clampInterpolation(x3);
+            clampInterpolation(x4);
+            clampInterpolation(x5);
+            clampInterpolation(x6);
+            clampInterpolation(x7);
             dx = x_lat-x0[0];
             dy = y_lat-x0[1];
             dz = z_lat-x0[2];

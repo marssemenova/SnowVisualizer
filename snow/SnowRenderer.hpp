@@ -51,7 +51,10 @@ public:
 	 * @param windVel - Macroscopic wind velocity of the wind field.
 	 * @param latticeRes - Lattice resolution used in the LBM for the wind field.
 	 */
-	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp, unsigned whichAlg, float windVel, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), windVel(windVel), latticeRes(latticeRes) {
+	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp, unsigned whichAlg, float windVelInp, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), latticeRes(latticeRes) {
+		// convert wind vel from km to m
+		windVel = (windVelInp / 3.6f); // km/h > m/s
+
 		// copy + clamp extents
 		memcpy(extents, extentsInp, 6*sizeof(float));
 		float xExt = abs(extents[0][1]-extents[0][0]);
@@ -110,7 +113,7 @@ public:
 	/**
 	 * Default constructor for SnowRenderer.
 	 */
-	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENTS, DEFAULT_TEMP, EXPERIMENTAL_ALG, DEFAULT_WIND_VELOCITY, DEFAULT_LATTICE_RES) {};
+	SnowRenderer() : SnowRenderer(DEFAULT_SNOW_COUNT, DEFAULT_EXTENTS, DEFAULT_TEMP) {};
 
 	/**
 	 * Setup VAOs.
