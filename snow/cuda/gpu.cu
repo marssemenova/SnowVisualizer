@@ -13,18 +13,16 @@
 
 using namespace std;
 
+// external code dependencies
 #include "../SnowGeneratorData.hpp"
-#include "../../util/CPUTimer.hpp"
-#include "cuda_errors.h"
-#include "cuda_utils.h"
+#include "../../util/DevInput.hpp"
 
-#define GRAVITY -9.81f*10.0f
-#define SNOW_NOISE_Y 0.1f
-
+// consts
+__constant__ __device__ float GRAVITY = -9.81f*10.0f;
+__constant__ __device__ float SNOW_NOISE_Y = 0.1f;
 #define LBM_Q 19
-#define LBM_C 1.0 // from speed of sounds = 1/sqrt(3)
-#define LBM_C_S 1.0/sqrt(3) // from speed of sounds = 1/sqrt(3)
-#define LBM_M_MAX 0.1
+__constant__ __device__ float LBM_C = 1.0; // from speed of sounds = 1/sqrt(3)
+const float LBM_C_S = 1.0/sqrt(3); // from speed of sounds = 1/sqrt(3)
 __constant__ static const int D_LATTICE_VELOCITIES[19][3] = { {0,0,0},
     {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
     {1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}, {1,0,1}, {1,0,-1}, {-1,0,1}, {-1,0,-1}, {0,1,1}, {0,1,-1},  {0,-1,1},  {0,-1,-1}};
@@ -59,11 +57,11 @@ struct Lattice {
 dim3 h_lbmBlockSize;
 dim3 h_lbmGridSize;
 // apply forces
-#define SNOW_FORCES_BLOCK_SIZE 1024
-#define SNOW_FORCES_BATCH_SIZE 8
+const unsigned SNOW_FORCES_BLOCK_SIZE = 1024;
+const unsigned SNOW_FORCES_BATCH_SIZE = 8;
 unsigned h_snowForcesNumBlocks;
 // update snow
-#define SNOW_UPDATE_BLOCK_SIZE 1024
+const unsigned SNOW_UPDATE_BLOCK_SIZE = 1024;
 unsigned h_snowUpdateNumBlocks;
 
 // host vars
@@ -91,16 +89,37 @@ Lattice *d_destLattice;
 
 #include "lbm_utils.h"
 
+/**
+ * Helper function to check whether a lattice point is on the boundary or not.
+ * @param accessX - 3D x index in of the lattice point to check.
+ * @param accessY - 3D y index in of the lattice point to check.
+ * @param accessZ - 3D z index in of the lattice point to check.
+ * @return Whether the lattice point is not on the boundary.
+ */
 __device__ bool applyBoundaryConds(float accessX, float accessY, float accessZ) {
     return (0 <= accessX && accessX < d_N && 0 <= accessY && accessY < d_N && 0 <= accessZ && accessZ < d_N);
 }
 
+/**
+ * Helper function to calculate the local equilibrium distribution function.
+ * @param velocity - A float[3] containing the velocity vector used in the local equilibrium distribution function.
+ * @param density
+ * @param t3 - Term 3 of the local equilibrium distribution functions. Since it is the same for all
+ * local equilibrium distribution functions of a lattice point it is pre-calculated to avoid calculating it 19 times.
+ * @return The computed value of the local equilibrium distribution function with the given parameters.
+ */
 __device__ float feqFunc(float velocity[3], float density, float t3, int f) {
     float t1 = D_LATTICE_VELOCITIES[f][0]*velocity[0] + D_LATTICE_VELOCITIES[f][1]*velocity[1] + D_LATTICE_VELOCITIES[f][2]*velocity[2];
     float t2 = t1*t1;
     return D_LATTICE_WEIGHTS[f]*density*(1 + (3.0/LBM_C)*t1 + (9.0/(2.0*pow(LBM_C,2)))*t2 - (3.0/(2.0*pow(LBM_C,2)))*t3);
 }
 
+/**
+ * LBM kernel.
+ * @param d_srcLattice - Source lattice.
+ * @param d_destLattice - Destination lattice.
+ * @param d_velocities - Array on the GPU which stores the calculated velocity at each lattice point.
+ */
 __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* d_velocities) {
     // compute the 3D position of the thread
     int x = threadIdx.x;
@@ -227,7 +246,10 @@ __global__ void lbmKernel(Lattice *d_srcLattice, Lattice *d_destLattice, float* 
 
 /**
  * Create and initialize curandState using seed, one for each thread.
- * Stores result in globalState[tid]. // TODO: params
+ * Stores result in globalState.
+ * @param g_globalState - Allocated array on the GPU to store the global states.
+ * @param seed - Seed used for random generation.
+ * @param d_numParticles - Number of snow particles.
  */
 __global__ void setupSnowRandState(curandState* d_globalState, uint64_t seed, unsigned *d_numParticles) {
     unsigned kernelInd = blockIdx.x*SNOW_FORCES_BLOCK_SIZE*SNOW_FORCES_BATCH_SIZE + threadIdx.x;
@@ -239,6 +261,12 @@ __global__ void setupSnowRandState(curandState* d_globalState, uint64_t seed, un
     }
 }
 
+/**
+ * Helper function to calculate the velocity at a lattice point.
+ * @param pos - A float[3] containing the lattice point's 3D coordinates in the form {x, y, z}.
+ * @param d_velocities - Array on the GPU which stores the calculated velocity at each lattice point.
+ * @param velocity - A float[3] into which to store the computed velocity.
+ */
 __device__ void calcVelocity(int pos[3], float* d_velocities, float velocity[3]) {
     int ind = getInd(pos);
     for (int x = 0; x < 3; x++) {
@@ -246,20 +274,17 @@ __device__ void calcVelocity(int pos[3], float* d_velocities, float velocity[3])
     }
 }
 
-__device__ void clampInterpolation(int xPos[3]) {
-    for (int x = 0; x < 3; x++) {
-        xPos[x] = xPos[x] < d_N ? xPos[x] : d_N-1;
-    }
-}
-
 /**
- * Kernel which applies forces to snow particles and stores the offset.
+ * Kernel which applies forces, gravity and wind, to snow particles and stores the offset.
  * @param d_snowflakeDataFlat - Flattened snowflake data. Every 3 elements correspond
  * to a snow particle's coordinates.
+ * @param d_numParticles - Number of snow particles.
  * @param d_snowOffsets - The offsets array into which to write. Every 5 elements correspond to a
  * particle's data, where the first 3 elements are the offset, the 4th element
  * is the number of polygons in the snowflake, and the 5th parameter is the first index of its
  * vertices in the vertices array.
+ * @param d_globalState - Global state array used for random generation on the GPU.
+ * @param d_velocities - Array on the GPU which stores the calculated velocity at each lattice point.
  */
 __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParticles, float *d_snowOffsets, curandState* d_globalState, float* d_velocities) {
     unsigned kernelInd = blockIdx.x*SNOW_FORCES_BLOCK_SIZE*SNOW_FORCES_BATCH_SIZE + threadIdx.x;
@@ -296,15 +321,7 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
             x4[0] = x_lat_int, x4[1] = y_lat_int + 1, x4[2] = z_lat_int + 1;
             x5[0] = x_lat_int + 1, x5[1] = y_lat_int, x5[2] = z_lat_int + 1;
             x6[0] = x_lat_int + 1, x6[1] = y_lat_int + 1, x6[2] = z_lat_int;
-            x7[0] = x_lat_int + 1, x7[1] = y_lat_int + 1, x7[2] = z_lat_int + 1;
-            clampInterpolation(x0);
-            clampInterpolation(x1);
-            clampInterpolation(x2);
-            clampInterpolation(x3);
-            clampInterpolation(x4);
-            clampInterpolation(x5);
-            clampInterpolation(x6);
-            clampInterpolation(x7);
+            x7[0] = x_lat_int + 1, x7[1] = y_lat_int + 1, x7[2] = z_lat_int + 1; // note: removed clamping, hopefully no consequences
             dx = x_lat-x0[0];
             dy = y_lat-x0[1];
             dz = z_lat-x0[2];
@@ -388,6 +405,7 @@ __global__ void snowApplyForces(float *d_snowflakeDataFlat, unsigned *d_numParti
  * particle's data, where the first 3 elements are the offset, the 4th element
  * is the number of polygons in the snowflake, and the 5th parameter is the first index of its
  * vertices in the vertices array.
+ * @param d_numParticles - Number of snow particles.
  */
 __global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_numParticles) {
     unsigned kernelInd = blockIdx.x*SNOW_UPDATE_BLOCK_SIZE + threadIdx.x;
@@ -401,6 +419,11 @@ __global__ void snowUpdate(float *d_verts, float *d_snowOffsets, unsigned *d_num
     }
 }
 
+/**
+ * Calculate and store the initial local equilibrium distribution functions.
+ * @param feqInitCpy - Array temporarily allocated on the devices used to copy to d_feqInit, the constant
+ * field on the device.
+ */
 __global__ void feqInitKernel(float *feqInitCpy) {
     float velocity[] = {d_windVel, 0, d_windVel};
     float feq[LBM_Q];
@@ -411,6 +434,10 @@ __global__ void feqInitKernel(float *feqInitCpy) {
     }
 }
 
+/**
+ * Initialize the model.
+ * @param d_srcLattice - Source lattice allocated on the device.
+ */
 __global__ void initLBMModel(Lattice *d_srcLattice) {
     // compute the 3D position of the thread
     int x = threadIdx.x;
@@ -433,9 +460,11 @@ __global__ void initLBMModel(Lattice *d_srcLattice) {
  * Initialize data on the GPU.
  * @param data - SnowGeneratorData object with particle data.
  * @param numParticles - Number of particles.
- * @param extents - Extents of the volume in which to generate the particles, where extents[0] is a pair for the x extent,
- * extents[1] is a pair for the y extent, and extents[2] is a pair for the z extent. If numParticles = 1 this
- * parameter has no effect and the snow particle is generated at the origin.
+ * @param extents - Extents of the volume in which to generate the wind field, where extents[0] is a pair for the x extent,
+ * extents[1] is a pair for the y extent, and extents[2] is a pair for the z extent.
+ * @param windVel - The macroscopic flow velocity of the wind in km/h.
+ * @param latticeRes - Lattice resolution.
+ * @param temp - Temperature of the simulation.
  */
 extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float extents[3][2], float windVel, unsigned latticeRes, float temp) {
     // format extents
@@ -602,11 +631,11 @@ extern void snowInitGPU(SnowGeneratorData data, unsigned numParticles, float ext
  * Update snow on the GPU via kernel calls.
  */
 extern void snowUpdateGPU() {
-    frameCount++;
     // dispatch kernels
     // LBM
     time_point lbmStart;
     if (PROFILING) {
+        frameCount++;
         lbmStart = startTimer();
     }
     lbmKernel<<<h_lbmGridSize, h_lbmBlockSize>>>(d_srcLattice, d_destLattice, d_velocities);

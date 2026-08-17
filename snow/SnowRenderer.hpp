@@ -12,11 +12,6 @@
 #include "SnowGenerator.hpp"
 #include "cuda/gpu.hpp"
 
-const float DEFAULT_WIND_VELOCITY = 100;
-const unsigned DEFAULT_LATTICE_RES = 16;
-
-using namespace std;
-
 class SnowRenderer {
 private:
 	// params

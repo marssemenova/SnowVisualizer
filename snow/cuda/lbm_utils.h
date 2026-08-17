@@ -7,8 +7,16 @@
 #ifndef LBM_UTILS_H
 #define LBM_UTILS_H
 
-#include "../../util/CPUTimer.hpp"
+#include "cuda_utils.h"
 
+// profiling vars
+static int frameCount = 0;
+float lbmTime, lbmTimeTot = 0, forcesTime, forcesTimeTot = 0, updateTime, updateTimeTot = 0, cpyTime, cpyTimeTot = 0;
+
+/**
+ * Helper function to print a lattice's velocity distribution functions.
+ * @param d_lattice - Lattice allocated on the device to print.
+ */
 __global__ void printLattice(Lattice *d_lattice) {
     float* refs[] = {d_lattice->f0, d_lattice->f1, d_lattice->f2, d_lattice->f3, d_lattice->f4, d_lattice->f5, d_lattice->f6, d_lattice->f7, d_lattice->f8, d_lattice->f9, d_lattice->f10, d_lattice->f11, d_lattice->f12, d_lattice->f13, d_lattice->f14, d_lattice->f15, d_lattice->f16, d_lattice->f17, d_lattice->f18};
     for (int x = 0; x < d_N*d_N*d_N; x++) {
@@ -20,6 +28,10 @@ __global__ void printLattice(Lattice *d_lattice) {
     }
 }
 
+/**
+ * Helper function to print the stored velocities of a lattice.
+ * @param d_velocities - Velocities array allocated on the device to print.
+ */
 __global__ void printVelocities(float *d_velocities) {
     for (int x = 0; x < d_N*d_N*d_N; x++) {
         printf("%d: (%f %f %f), ", x, d_velocities[3*x], d_velocities[3*x+1], d_velocities[3*x+2]);
@@ -27,17 +39,36 @@ __global__ void printVelocities(float *d_velocities) {
     printf("\n");
 }
 
+/**
+ * Helper function which calculates a 1D index from 3D coordinates.
+ * @param x
+ * @param y
+ * @param z
+ * @return 1D index corresponding to (x, y, z).
+ */
 __device__ int getInd(int x, int y, int z) {
     return x + y * d_N + z * d_N*d_N;
 }
 
+/**
+ * Helper function which calculates a 1D index from 3D coordinates.
+ * @param pos - A float[3] of the 3D coordinates in the form {x, y, z}.
+ * @return 1D index corresponding to (x, y, z).
+ */
 __device__ int getInd(int pos[3]) {
     return getInd(pos[0], pos[1], pos[2]);
 }
 
-// TODO
+/**
+ * Helper function which computes the parameters of the model and uploads them to the GPU.
+ * @param h_extents - Extents of volume in which to generate the wind field, where h_extents[0] is a pair for the x extent,
+ * h_extents[1] is a pair for the y extent, and h_extents[2] is a pair for the z extent.
+ * @param h_windVel - The macroscopic flow velocity of the wind in km/h.
+ * @param h_N - Lattice resolution.
+ * @param h_temp - Temperature of the simulation.
+ */
 void setLBMModelParams(float h_extents[3][2], float h_windVel, unsigned h_N, float h_temp) {
-    float h_cs_phys =  328.25; // m/s from temp (-5) (https://en.wikipedia.org/wiki/Speed_of_sound)
+    float h_cs_phys =  328.25; // m/s from temp (-5) (https://en.wikipedia.org/wiki/Speed_of_sound) TODO: make lookup table
     float h_delta_x_phys = abs(h_extents[0][1]-h_extents[0][0])/h_N;
     float h_delta_t_phys = (LBM_C_S/h_cs_phys)*h_delta_x_phys;
     float h_tau = 0.55;

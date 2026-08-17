@@ -20,4 +20,6 @@ float temp = -5.0;
 unsigned latticeRes = 20;
 float windVel = 20; // km/h
 
+#include "DevInput.hpp"
+
 #endif

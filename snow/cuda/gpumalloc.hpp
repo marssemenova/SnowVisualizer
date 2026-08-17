@@ -1,5 +1,5 @@
 /**
- * gpu.hpp - Defines the function which allocated data on the GPU
+ * gpumalloc.hpp - Defines the function which allocates data on the GPU
  * which is imported from CUDA.
  *
  * @author Mars Semenova

@@ -63,7 +63,7 @@ private:
 			} else {
 				data = generateSnowOnceExperimental();
 			}
-			xPos = getRandFloat(extents[0][0], extents[0][1]); // TODO: test if works if reverse order
+			xPos = getRandFloat(extents[0][0], extents[0][1]);
 			yPos = getRandFloat(extents[1][0], extents[1][1]);
 			zPos = getRandFloat(extents[2][0], extents[2][1]);
 			data.snowflakeData[0].pos[0] = xPos;

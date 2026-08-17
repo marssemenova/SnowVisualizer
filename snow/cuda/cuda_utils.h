@@ -7,11 +7,14 @@
 #ifndef CUDA_UTILS_H
 #define CUDA_UTILS_H
 
-float lbmTime, lbmTimeTot = 0, forcesTime, forcesTimeTot = 0, updateTime, updateTimeTot = 0, cpyTime, cpyTimeTot = 0;
+#include "cuda_errors.h"
+#include "../../util/CPUTimer.hpp"
 
 /**
- * Generate a floating point number in the range (min,max].
- * Note curand_uniform returns numbers in the  range (0.0, 1.0]. // TODO: params
+ * Get random float in the range [min, max) on the GPU.
+ * @param min - Min float generated.
+ * @param max - Max float generated, non-inclusive.
+ * @return Generated float.
  */
 __device__ __forceinline__ float getRandFloatGPU(float min, float max, curandState* localState) {
     return min + (max - min) * curand_uniform(localState);

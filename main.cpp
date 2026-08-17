@@ -7,6 +7,8 @@
 
 #include <thread>
 
+using namespace std;
+
 #include "util/Constants.hpp"
 
 // OpenGL includes
@@ -21,6 +23,7 @@ void processInput(GLFWwindow *window);
 
 int main() {
     srand(time(0));
+
     // glfw: initialize and configure
     glfwInit();
     glfwWindowHint(GLFW_SAMPLES, 4);
@@ -40,7 +43,7 @@ int main() {
         return -1;
     }
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1);
+    glfwSwapInterval(1); // TODO: doesn't seem to be working
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     // glad: load all OpenGL function pointers
@@ -50,24 +53,22 @@ int main() {
     }
 
     // def vars
-    float screenW = SCR_WIDTH;
-    float screenH = SCR_HEIGHT;
     GLenum err;
     windVel = (windVel / 3.6f); // km/h > m/s
 
     // ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
-    // dark blue background
+    // black bg
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     // set up rendering vars
-    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), screenW/screenH, 0.001f, zFarClip);
+    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), SCR_WIDTH/SCR_HEIGHT, 0.001f, zFarClip);
     glm::vec3 eye;
     if (whichCam == GLOBE_CAM) {
-        eye= {0.0f, 50.0f, 100.0f};
+        eye= {0.0f, 50.0f, 150.0f};
     } else {
-        eye = {0.0f, 0.0f, 150.0f};
+        eye = {0.0f, 0.0f, 400.0f};
     }
     glm::vec3 up = {0.0f, 1.0f, 0.0f};
     glm::vec3 center = {0.0f, 0.0f, 0.0f};
@@ -85,23 +86,24 @@ int main() {
     float extents[3][2] = {{minX, maxX}, {minY, maxY}, {minZ, maxZ}};
     SnowRenderer snowGen(numParticles, extents, temp, EXPERIMENTAL_ALG, windVel, latticeRes);
 
+    // profiling vars
+    time_point renderStart, totStart;
+    float gpuTime, gpuTimeTot = 0, renderTime, renderTimeTot = 0, totTime, totTimeTot = 0;
+    int frameCount = 0;
+
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    time_point renderStart, totStart;
-
-    float gpuTime, gpuTimeTot = 0, renderTime, renderTimeTot = 0, totTime, totTimeTot = 0;
     do {
-        frameCount++;
         if (PROFILING) {
+            frameCount++;
             totStart = startTimer();
             time_point gpuStart = startTimer();
             snowGen.updateSnowGPUTimed();
             time_point gpuEnd = stopTimer();
             gpuTime = elapsedTime(gpuStart, gpuEnd);
-            //printf("%d: gpu time: %f\n", frameCount, gpuTime);
             gpuTimeTot += gpuTime;
         } else {
             snowGen.updateSnow();
@@ -111,6 +113,7 @@ int main() {
             renderStart = startTimer();
             snowGen.updateSnowTimed();
         }
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
         snowGen.draw(lightpos, MSnow, V, Projection);

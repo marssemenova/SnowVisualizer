@@ -1,5 +1,5 @@
 /**
-* Constants.hpp - Contains includes, definitions, and constants for the application.
+* ImportGL.hpp - Contains includes, definitions, and constants for the OpenGL part of the application.
  *
  * @author Mars Semenova
  */
@@ -19,8 +19,8 @@
 using namespace glm;
 
 // settings
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
+const float  SCR_WIDTH = 1280.0f;
+const float SCR_HEIGHT = 720.0f;
 
 #include "Shader.hpp"
 #include "Axes.hpp"

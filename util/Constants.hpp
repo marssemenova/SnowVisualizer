@@ -7,8 +7,6 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
-#define _HAS_ITERATOR_DEBUGGING 0
-
 // include libs
 #include <stdio.h>
 #include <stdlib.h>
