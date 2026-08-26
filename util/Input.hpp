@@ -14,7 +14,7 @@ unsigned numParticles = 10000;
 unsigned whichCam = FIRST_PERSON_CAM;
 float zFarClip = 1000;
 float minX = -100.0, maxX = 100.0, minY = -100.0, maxY = 100.0, minZ = -100.0, maxZ = 100.0;
-float temp = -5.0;
+float temp = -5.0; // TODO: should affect wind field
 
 // wind
 unsigned latticeRes = 20;
