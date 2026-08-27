@@ -53,7 +53,7 @@ public:
 	 */
 	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp, unsigned whichAlg, float windVelInp, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), latticeRes(latticeRes) {
 		// convert wind vel from km to m
-		windVel = (windVelInp / 3.6f); // km/h > m/s
+		windVel = (windVelInp / 3.6f)*100; // km/h > cm/s
 
 		// copy + clamp extents
 		memcpy(extents, extentsInp, 6*sizeof(float));

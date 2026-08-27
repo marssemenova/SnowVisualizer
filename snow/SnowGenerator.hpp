@@ -136,7 +136,7 @@ public:
 			diameter = 0.04;
 		}
 		isWet = temp >= SNOW_STATE_THRESH;
-		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter;
+		density = isWet ? WET_HUMIDITY_CONST/diameter : DRY_HUMIDITY_CONST/diameter; // TODO: if using probly also need to convert to cm
 		diameter *= 100.0; // to cm
 	}
 

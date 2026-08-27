@@ -18,7 +18,7 @@ float temp = -5.0; // TODO: should affect wind field
 
 // wind
 unsigned latticeRes = 20;
-float windVel = 20; // km/h
+float windVel = 5.0f/100.0f; // km/h
 
 #include "DevInput.hpp"
 

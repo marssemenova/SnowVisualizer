@@ -18,7 +18,7 @@ using namespace std;
 #include "../../util/DevInput.hpp"
 
 // consts
-__constant__ __device__ float GRAVITY = -9.81f*10.0f;
+__constant__ __device__ float GRAVITY = -9.81f;
 __constant__ __device__ float SNOW_NOISE_Y = 0.1f;
 #define LBM_Q 19
 __constant__ __device__ float LBM_C = 1.0; // from speed of sounds = 1/sqrt(3)
