@@ -12,6 +12,10 @@
 #include "SnowGenerator.hpp"
 #include "cuda/gpu.hpp"
 
+// clamp temp range
+const float MIN_TEMP = -25.0;
+const float MAX_TEMP = 35.0;
+
 class SnowRenderer {
 private:
 	// params
@@ -51,9 +55,15 @@ public:
 	 * @param windVel - Macroscopic wind velocity of the wind field.
 	 * @param latticeRes - Lattice resolution used in the LBM for the wind field.
 	 */
-	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp, unsigned whichAlg, float windVelInp, unsigned latticeRes) : numParticles(numParticles), temp(temp), whichAlg(whichAlg), latticeRes(latticeRes) {
+	SnowRenderer(unsigned numParticles, const float extentsInp[3][2], float temp, unsigned whichAlg, float windVelInp, unsigned latticeRes) : numParticles(numParticles), whichAlg(whichAlg), latticeRes(latticeRes) {
 		// convert wind vel from km to m
 		windVel = (windVelInp / 3.6f)*100; // km/h > cm/s
+
+		// clamp temp
+		if (temp > MAX_TEMP || temp < MIN_TEMP) {
+			printf("Invalid temperature!\n");
+			exit(-1);
+		}
 
 		// copy + clamp extents
 		memcpy(extents, extentsInp, 6*sizeof(float));

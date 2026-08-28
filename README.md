@@ -114,6 +114,7 @@ Demos of the application can be found in `/docs/videos/`.
 - Make the snow look better
 - Consider loop unrolling + thread divergence
 - Testing suite
+- Run on proper GPU
 
 ### Snow Generator
 - Prevent generated triangles from intersecting

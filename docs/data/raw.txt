@@ -1,0 +1,170 @@
+10k
+LBM kernel time over 100 frames: 0.144160ms
+Snow particle update kernel time over 100 frames: 0.054440ms
+Vertices update kernel time over 100 frames: 1.952831ms
+GPU to CPU copy time over 100 frames: 1.762590ms
+GPU time over 100 frames: 3.920649ms
+Render time over 100 frames: 2.877470ms
+Total time over 100 frames: 6.799269ms
+CPU 6.4
+GPU 5
+GPU SM 55
+
+20k
+LBM kernel time over 100 frames: 0.168980ms
+Snow particle update kernel time over 100 frames: 0.055460ms
+Vertices update kernel time over 100 frames: 4.695721ms
+GPU to CPU copy time over 100 frames: 3.371490ms
+GPU time over 100 frames: 8.298122ms
+Render time over 100 frames: 3.734390ms
+Total time over 100 frames: 12.033866ms
+CPU 9.2
+GPU 10
+GPU SM 67
+
+30k
+LBM kernel time over 100 frames: 0.182650ms
+Snow particle update kernel time over 100 frames: 0.054820ms
+Vertices update kernel time over 100 frames: 10.886601ms
+GPU to CPU copy time over 100 frames: 5.025740ms
+GPU time over 100 frames: 16.156841ms
+Render time over 100 frames: 5.066139ms
+Total time over 100 frames: 21.224621ms
+CPU 12.4
+GPU 17
+GPU SM 75 
+
+40k
+LBM kernel time over 100 frames: 0.200930ms
+Snow particle update kernel time over 100 frames: 0.055840ms
+Vertices update kernel time over 100 frames: 14.304968ms
+GPU to CPU copy time over 100 frames: 6.706160ms
+GPU time over 100 frames: 21.274805ms
+Render time over 100 frames: 7.163997ms
+Total time over 100 frames: 28.440603ms
+CPU 15.1
+GPU 16
+GPU SM 74
+
+50k
+LBM kernel time over 100 frames: 0.202390ms
+Snow particle update kernel time over 100 frames: 0.055520ms
+Vertices update kernel time over 100 frames: 17.504610ms
+GPU to CPU copy time over 100 frames: 8.413800ms
+GPU time over 100 frames: 26.184431ms
+Render time over 100 frames: 8.226991ms
+Total time over 100 frames: 34.413235ms
+CPU 17.8
+GPU 16
+GPU SM 75
+
+-----
+20
+LBM kernel time over 100 frames: 0.144160ms
+Snow particle update kernel time over 100 frames: 0.054440ms
+Vertices update kernel time over 100 frames: 1.952831ms
+GPU to CPU copy time over 100 frames: 1.762590ms
+GPU time over 100 frames: 3.920649ms
+Render time over 100 frames: 2.877470ms
+Total time over 100 frames: 6.799269ms
+CPU 6.4
+GPU 5
+GPU SM 55
+
+40
+LBM kernel time over 100 frames: 0.705170ms
+Snow particle update kernel time over 100 frames: 0.081770ms
+Vertices update kernel time over 100 frames: 1.839580ms
+GPU to CPU copy time over 100 frames: 1.741019ms
+GPU time over 100 frames: 4.372830ms
+Render time over 100 frames: 2.592950ms
+Total time over 100 frames: 6.966879ms
+CPU 6.7
+GPU 5
+GPU SM 60
+
+80
+LBM kernel time over 100 frames: 3.753801ms
+Snow particle update kernel time over 100 frames: 0.089360ms
+Vertices update kernel time over 100 frames: 1.836920ms
+GPU to CPU copy time over 100 frames: 1.708460ms
+GPU time over 100 frames: 7.395532ms
+Render time over 100 frames: 2.191760ms
+Total time over 100 frames: 9.588571ms
+CPU 6.3
+GPU 7
+GPU SM 76
+
+120
+LBM kernel time over 100 frames: 11.411454ms
+Snow particle update kernel time over 100 frames: 0.098350ms
+Vertices update kernel time over 100 frames: 1.838850ms
+GPU to CPU copy time over 100 frames: 1.747570ms
+GPU time over 100 frames: 15.104387ms
+Render time over 100 frames: 2.294760ms
+Total time over 100 frames: 17.400389ms
+CPU 6.4
+GPU 10
+GPU SM 85
+
+160
+LBM kernel time over 100 frames: 25.526487ms
+Snow particle update kernel time over 100 frames: 0.115230ms
+Vertices update kernel time over 100 frames: 1.837890ms
+GPU to CPU copy time over 100 frames: 1.861480ms
+GPU time over 100 frames: 29.348230ms
+Render time over 100 frames: 6.470697ms
+Total time over 100 frames: 35.820660ms
+CPU 5.9
+GPU 10
+GPU SM 78 
+
+200
+LBM kernel time over 100 frames: 56.137245ms
+Snow particle update kernel time over 100 frames: 0.129790ms
+Vertices update kernel time over 100 frames: 1.847070ms
+GPU to CPU copy time over 100 frames: 1.929490ms
+GPU time over 100 frames: 60.050858ms
+Render time over 100 frames: 8.613289ms
+Total time over 100 frames: 68.666115ms
+CPU 6.4
+GPU 10
+GPU SM 85
+
+240
+LBM kernel time over 100 frames: 90.250900ms
+Snow particle update kernel time over 100 frames: 0.136070ms
+Vertices update kernel time over 100 frames: 1.838620ms
+GPU to CPU copy time over 100 frames: 1.900320ms
+GPU time over 100 frames: 94.135117ms
+Render time over 100 frames: 8.860270ms
+Total time over 100 frames: 102.997185ms
+CPU 6.7
+GPU 13
+GPU SM 90
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
